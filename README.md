@@ -13,4 +13,4 @@ API REST Spring Boot pour la gestion de boutique (auth, produits, ventes, stock,
 3. API disponible sur `http://localhost:8080`
 
 ## Projet lié
-Frontend : https://github.com/TON_USERNAME/sellam-store-frontend
+Frontend : https://github.com/nelsonkonga/sellam-store-frontend
