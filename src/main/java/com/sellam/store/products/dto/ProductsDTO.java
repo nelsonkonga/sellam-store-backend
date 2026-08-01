@@ -1,6 +1,6 @@
 package com.sellam.store.products.dto;
 
-import com.sellam.store.sales.models.SaleTypeEnum;
+
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +27,7 @@ public class ProductsDTO {
         String pictureUrl;
 
         @NonNull
-        SaleTypeEnum saleTypeEnum;
+        UUID saleTypeId;
 
         @NonNull
         BigDecimal purchasePrice;
@@ -62,7 +62,9 @@ public class ProductsDTO {
 
         String pictureUrl;
 
-        SaleTypeEnum saleTypeEnum;
+        UUID saleTypeId;
+        String saleTypeName;
+        String saleTypeUnitLabel;
 
         BigDecimal purchasePrice;
 

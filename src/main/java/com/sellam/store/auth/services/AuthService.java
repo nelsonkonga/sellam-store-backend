@@ -41,7 +41,7 @@ public class AuthService {
 
         String token = jwtProvider.generateToken(savedAccount.getId(), savedAccount.getPhoneNumber());
 
-        return new AuthDTO.AuthOutput(token, savedAccount.getId().toString(), savedAccount.getName());
+        return new AuthDTO.AuthOutput(token, savedAccount.getId().toString(), savedAccount.getName(), savedAccount.getPhoneNumber());
     }
 
     public AuthDTO.AuthOutput login(AuthDTO.LoginInput request) {
@@ -55,6 +55,6 @@ public class AuthService {
 
         String token = jwtProvider.generateToken(account.getId(), account.getPhoneNumber());
 
-        return new AuthDTO.AuthOutput(token, account.getId().toString(), account.getName());
+        return new AuthDTO.AuthOutput(token, account.getId().toString(), account.getName(), account.getPhoneNumber());
     }
 }

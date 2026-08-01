@@ -32,6 +32,7 @@ public class AccountEntity
 
     private String passwordHash;
 
+    @Column(columnDefinition = "TEXT")
     private String profilePictureUrl;
 
     private String oauthProvider;

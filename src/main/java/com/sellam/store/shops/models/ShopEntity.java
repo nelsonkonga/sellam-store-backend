@@ -32,6 +32,7 @@ public class ShopEntity
 
     private String address;
 
+    @Column(columnDefinition = "TEXT")
     private String logoUrl;
 
     @CreatedDate

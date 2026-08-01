@@ -34,6 +34,17 @@ public class ProductsRestController {
     public ProductsDTO.PostOutput post(@Valid @RequestBody ProductsDTO.PostInput input) throws ProductsException
     {
         return productsService.createProduct(input);
+    }
 
+    @GetMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public ProductsDTO.PostOutput getProductById(@PathVariable UUID id) {
+        return productsService.getProductById(id);
+    }
+
+    @PutMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public ProductsDTO.PostOutput updateProduct(@PathVariable UUID id, @Valid @RequestBody ProductsDTO.PostInput input) {
+        return productsService.updateProduct(id, input);
     }
 }

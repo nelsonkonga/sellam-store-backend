@@ -1,7 +1,7 @@
 package com.sellam.store.products.models;
 
 import com.sellam.store.sales.models.SaleEntity;
-import com.sellam.store.sales.models.SaleTypeEnum;
+import com.sellam.store.saletypes.models.SaleTypeEntity;
 import com.sellam.store.shops.models.ShopEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -32,10 +32,12 @@ public class ProductEntity
 
     private String barcode;
 
+    @Column(columnDefinition = "TEXT")
     private String pictureUrl;
 
-    @Enumerated(EnumType.STRING)
-    private SaleTypeEnum saleTypeEnum;
+    @ManyToOne
+    @JoinColumn(name = "sale_type_id", nullable = false)
+    private SaleTypeEntity saleType;
 
     private BigDecimal purchasePrice;
 

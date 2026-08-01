@@ -3,6 +3,8 @@ import com.sellam.store.common.exception.ResourceNotFoundException;
 import com.sellam.store.products.dto.ProductsDTO;
 import com.sellam.store.products.models.ProductEntity;
 import com.sellam.store.products.models.exception.ProductsException;
+import com.sellam.store.saletypes.models.SaleTypeEntity;
+import com.sellam.store.saletypes.repositories.SaleTypeRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import io.micrometer.common.util.StringUtils;
 import org.springframework.stereotype.Service;
@@ -21,10 +23,13 @@ public class ProductsService
 
     private final ShopRepository shopRepository;
 
-    public ProductsService(ProductsRepository productsRepository, ShopRepository shopRepository)
+    private final SaleTypeRepository saleTypeRepository;
+
+    public ProductsService(ProductsRepository productsRepository, ShopRepository shopRepository, SaleTypeRepository saleTypeRepository)
     {
         this.productsRepository = productsRepository;
         this.shopRepository = shopRepository;
+        this.saleTypeRepository = saleTypeRepository;
     }
 
 
@@ -45,11 +50,15 @@ public class ProductsService
 
         ShopEntity shop = shopRepository.findById(input.getShopId())
                 .orElseThrow(() -> new ResourceNotFoundException("Boutique Introuvable"));
+
+        SaleTypeEntity saleType = saleTypeRepository.findById(input.getSaleTypeId())
+                .orElseThrow(() -> new ResourceNotFoundException("Type de vente introuvable"));
+
         ProductEntity newProduct = ProductEntity.builder()
                 .name(input.getName())
                 .barcode(input.getBarcode())
                 .pictureUrl(input.getPictureUrl())
-                .saleTypeEnum(input.getSaleTypeEnum())
+                .saleType(saleType)
                 .purchasePrice(input.getPurchasePrice())
                 .sellingPrice(input.getSellingPrice())
                 .stockQuantity(input.getStockQuantity())
@@ -75,9 +84,33 @@ public class ProductsService
     }
 
 
+    public ProductsDTO.PostOutput getProductById(UUID id) {
+        ProductEntity product = productsRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit Introuvable"));
+        return toPostOutput(product);
+    }
+
     public ProductsDTO.PostOutput updateProduct(UUID id, ProductsDTO.PostInput input)
     {
-       return null;
+        ProductEntity product = productsRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit Introuvable"));
+        
+        SaleTypeEntity saleType = saleTypeRepository.findById(input.getSaleTypeId())
+                .orElseThrow(() -> new ResourceNotFoundException("Type de vente introuvable"));
+
+        product.setName(input.getName());
+        product.setBarcode(input.getBarcode());
+        product.setPictureUrl(input.getPictureUrl());
+        product.setSaleType(saleType);
+        product.setPurchasePrice(input.getPurchasePrice());
+        product.setSellingPrice(input.getSellingPrice());
+        product.setStockQuantity(input.getStockQuantity());
+        product.setAlertThreshold(input.getAlertThreshold());
+        product.setCategory(input.getCategory());
+        product.setExpirationDate(input.getExpirationDate());
+        
+        productsRepository.save(product);
+        return toPostOutput(product);
     }
 
 
@@ -96,7 +129,9 @@ public class ProductsService
                 .name(newProduct.getName())
                 .barcode(newProduct.getBarcode())
                 .pictureUrl(newProduct.getPictureUrl())
-                .saleTypeEnum(newProduct.getSaleTypeEnum())
+                .saleTypeId(newProduct.getSaleType().getId())
+                .saleTypeName(newProduct.getSaleType().getName())
+                .saleTypeUnitLabel(newProduct.getSaleType().getUnitLabel())
                 .purchasePrice(newProduct.getPurchasePrice())
                 .sellingPrice(newProduct.getSellingPrice())
                 .stockQuantity(newProduct.getStockQuantity())

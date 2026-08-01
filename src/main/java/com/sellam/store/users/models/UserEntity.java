@@ -30,6 +30,7 @@ public class UserEntity
 
     private String passwordHash;
 
+    @Column(columnDefinition = "TEXT")
     private String profilePictureUrl;
 
     @Enumerated(EnumType.STRING)

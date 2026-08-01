@@ -39,4 +39,11 @@ public class SalesRestController
     {
         return salesService.listTodaySales(shopId);
     }
+
+    @GetMapping("/shop/{shopId}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<SaleDTO.SaleResponse> listSalesByPeriod(@PathVariable UUID shopId, @RequestParam(defaultValue = "recent") String period)
+    {
+        return salesService.listSalesByPeriod(shopId, period);
+    }
 }

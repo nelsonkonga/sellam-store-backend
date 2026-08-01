@@ -95,7 +95,38 @@ public class SalesService
 
         LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
 
-        return salesRepository.findByShop_IdAndSoldAtBetween(shopId, startOfDay, endOfDay)
+        return salesRepository.findByShop_IdAndSoldAtBetweenOrderBySoldAtDesc(shopId, startOfDay, endOfDay)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<SaleDTO.SaleResponse> listSalesByPeriod(UUID shopId, String period) {
+        if ("recent".equalsIgnoreCase(period) || period == null || period.isEmpty()) {
+            return salesRepository.findTop5ByShop_IdOrderBySoldAtDesc(shopId)
+                    .stream().map(this::toResponse).collect(Collectors.toList());
+        }
+
+        LocalDateTime start;
+        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
+
+        switch (period.toLowerCase()) {
+            case "this_week":
+            case "cette_semaine":
+                start = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).atStartOfDay();
+                break;
+            case "this_month":
+            case "ce_mois":
+                start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+                break;
+            case "today":
+            case "aujourd_hui":
+            default:
+                start = LocalDate.now().atStartOfDay();
+                break;
+        }
+
+        return salesRepository.findByShop_IdAndSoldAtBetweenOrderBySoldAtDesc(shopId, start, end)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());

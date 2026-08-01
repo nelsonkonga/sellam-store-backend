@@ -46,5 +46,7 @@ public class AuthDTO
 
          String name;
 
+         String phoneNumber;
+
     }
 }
