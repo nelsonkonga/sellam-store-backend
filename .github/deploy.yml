@@ -20,7 +20,7 @@ jobs:
           cache: 'maven'
 
       - name: Build production JAR with Maven
-        run: mvn clean package -DskipTests -Dmaven.test.skip=true
+        run: mvn clean package -DskipTests -Dmaven.test.skip=true -Dmaven.compiler.source=21 -Dmaven.compiler.target=21
 
       - name: Upload files via SFTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
