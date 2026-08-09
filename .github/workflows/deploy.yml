@@ -44,7 +44,7 @@ jobs:
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
-          protocol: sftp
+          protocol: ftp
           local-dir: ./target/
           server-dir: ./
           file-name-regex: '.*\.jar$'
