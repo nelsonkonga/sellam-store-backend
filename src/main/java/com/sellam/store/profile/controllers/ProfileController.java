@@ -4,6 +4,7 @@ import com.sellam.store.profile.dto.ProfileDTO;
 import com.sellam.store.profile.services.ProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import com.sellam.store.common.security.AuthPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -20,14 +21,14 @@ public class ProfileController {
 
     @GetMapping
     public ResponseEntity<ProfileDTO.ProfileResponse> getProfile(Authentication authentication) {
-        UUID accountId = (UUID) authentication.getPrincipal();
-        return ResponseEntity.ok(profileService.getProfile(accountId));
+        AuthPrincipal principal = (AuthPrincipal) authentication.getPrincipal();
+        return ResponseEntity.ok(profileService.getProfile(principal));
     }
 
     @PutMapping("/theme")
     public ResponseEntity<Void> updateTheme(Authentication authentication, @RequestBody ProfileDTO.ThemeUpdateRequest request) {
-        UUID accountId = (UUID) authentication.getPrincipal();
-        profileService.updateThemePreference(accountId, request);
+        AuthPrincipal principal = (AuthPrincipal) authentication.getPrincipal();
+        profileService.updateThemePreference(principal, request);
         return ResponseEntity.ok().build();
     }
 }

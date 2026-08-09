@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.UUID;
+import com.sellam.store.common.security.AuthPrincipal;
 
 @Component
 public class JwtProvider
@@ -29,10 +30,12 @@ public class JwtProvider
     }
 
 
-    public String generateToken(UUID accountId, String phoneNumber)
+    public String generateToken(UUID id, String userType, UUID shopId, String phoneNumber)
     {
         return Jwts.builder()
-                    .setSubject(accountId.toString())
+                    .setSubject(id.toString())
+                    .claim("userType", userType)
+                    .claim("shopId", shopId != null ? shopId.toString() : null)
                     .claim("phoneNumber", phoneNumber)
                     .setIssuedAt(new Date())
                     .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
@@ -42,7 +45,7 @@ public class JwtProvider
     }
 
 
-    public UUID getAccountIdFromToken(String token)
+    public AuthPrincipal getPrincipalFromToken(String token)
     {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey((getSigningKey()))
@@ -50,8 +53,14 @@ public class JwtProvider
                 .parseClaimsJws(token)
                 .getBody();
 
-        return UUID.fromString(claims.getSubject());
-
+        String shopIdStr = claims.get("shopId", String.class);
+        
+        return AuthPrincipal.builder()
+                .id(UUID.fromString(claims.getSubject()))
+                .userType(claims.get("userType", String.class))
+                .shopId(shopIdStr != null ? UUID.fromString(shopIdStr) : null)
+                .phoneNumber(claims.get("phoneNumber", String.class))
+                .build();
     }
 
 

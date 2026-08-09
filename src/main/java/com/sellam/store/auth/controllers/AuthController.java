@@ -5,7 +5,11 @@ import com.sellam.store.auth.dto.AuthDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import com.sellam.store.common.security.AuthPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -33,5 +37,20 @@ public class AuthController
         AuthDTO.AuthOutput response = authService.login(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@RequestParam String token)
+    {
+        authService.verifyEmail(token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(Authentication authentication)
+    {
+        AuthPrincipal principal = (AuthPrincipal) authentication.getPrincipal();
+        authService.resendVerificationEmail(principal.getId());
+        return ResponseEntity.ok().build();
     }
 }

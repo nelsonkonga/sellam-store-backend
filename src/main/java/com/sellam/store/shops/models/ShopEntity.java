@@ -39,6 +39,7 @@ public class ShopEntity
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    private Boolean autoPrintInvoices = false;
 
     @ManyToOne
     @JoinColumn(name = "account_id", nullable = false)
@@ -49,6 +50,8 @@ public class ShopEntity
 
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL)
     private List<ProductEntity> products;
+
+
 
 
     public ProductEntity addProduct(ProductEntity product){

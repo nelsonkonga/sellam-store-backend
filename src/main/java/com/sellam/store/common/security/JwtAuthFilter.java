@@ -1,6 +1,7 @@
 package com.sellam.store.common.security;
 
 import com.sellam.store.auth.JwtProvider;
+import com.sellam.store.common.security.AuthPrincipal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,10 +49,10 @@ public class JwtAuthFilter extends OncePerRequestFilter
 
         if(jwtProvider.validateToken(token))
         {
-            UUID accountId = jwtProvider.getAccountIdFromToken(token);
+            AuthPrincipal principal = jwtProvider.getPrincipalFromToken(token);
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    accountId,
+                    principal,
                     null,
                     Collections.emptyList()
             );

@@ -21,6 +21,8 @@ public class AuthDTO
 
         @NonNull
         private String password;
+
+        private String email;
     }
 
     @Data
@@ -44,9 +46,17 @@ public class AuthDTO
 
          String accountId;
 
+         String userType;
+
+         String shopId;
+
          String name;
 
          String phoneNumber;
+
+        String email;
+
+        boolean emailVerified;
 
     }
 }

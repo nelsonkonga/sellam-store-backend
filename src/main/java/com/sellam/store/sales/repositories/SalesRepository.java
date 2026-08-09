@@ -12,4 +12,5 @@ public interface SalesRepository extends JpaRepository<SaleEntity, UUID>
     List<SaleEntity> findByShop_IdAndSoldAtBetween(UUID shopId, LocalDateTime start, LocalDateTime end);
     List<SaleEntity> findByShop_IdAndSoldAtBetweenOrderBySoldAtDesc(UUID shopId, LocalDateTime start, LocalDateTime end);
     List<SaleEntity> findTop5ByShop_IdOrderBySoldAtDesc(UUID shopId);
+    List<SaleEntity> findByInvoice_Id(UUID invoiceId);
 }

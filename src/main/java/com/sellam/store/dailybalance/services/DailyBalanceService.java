@@ -5,8 +5,9 @@ import com.sellam.store.dailybalance.dto.DailyBalanceDTO;
 import com.sellam.store.dailybalance.models.BalanceStatusEnum;
 import com.sellam.store.dailybalance.models.DailyBalanceEntity;
 import com.sellam.store.dailybalance.repositories.DailyBalanceRepository;
-import com.sellam.store.sales.models.SaleEntity;
-import com.sellam.store.sales.repositories.SalesRepository;
+import com.sellam.store.invoices.models.InvoiceEntity;
+import com.sellam.store.invoices.models.InvoiceStatusEnum;
+import com.sellam.store.invoices.repositories.InvoiceRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
 import org.springframework.stereotype.Service;
@@ -26,20 +27,20 @@ public class DailyBalanceService
 
     private final DailyBalanceRepository dailyBalanceRepository;
 
-    private final SalesRepository salesRepository;
+    private final InvoiceRepository invoiceRepository;
 
     private final ShopRepository shopRepository;
 
 
     public DailyBalanceService
             (
-            DailyBalanceRepository dailyBalanceRepository,
-            SalesRepository salesRepository,
-            ShopRepository shopRepository
+                    DailyBalanceRepository dailyBalanceRepository,
+                    InvoiceRepository invoiceRepository,
+                    ShopRepository shopRepository
             )
     {
         this.dailyBalanceRepository = dailyBalanceRepository;
-        this.salesRepository = salesRepository;
+        this.invoiceRepository = invoiceRepository;
         this.shopRepository = shopRepository;
     }
 
@@ -57,14 +58,15 @@ public class DailyBalanceService
 
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
-        List<SaleEntity> todaySales = salesRepository.findByShop_IdAndSoldAtBetween(shopId, startOfDay, endOfDay);
+        List<InvoiceEntity> todayInvoices = invoiceRepository.findByShop_IdAndStatusAndCreatedAtBetween(
+                shopId, InvoiceStatusEnum.VALIDATED, startOfDay, endOfDay);
 
-        BigDecimal computedTotalSales = todaySales.stream()
-                .map(SaleEntity::getTotalPrice)
+        BigDecimal computedTotalSales = todayInvoices.stream()
+                .map(InvoiceEntity::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal computedTotalMargin = todaySales.stream()
-                .map(SaleEntity::getMargin)
+        BigDecimal computedTotalMargin = todayInvoices.stream()
+                .map(InvoiceEntity::getTotalMargin)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal discrepancy = request.getDeclaredCash().subtract(computedTotalSales);

@@ -1,17 +1,10 @@
 package com.sellam.store.sales.services;
 
-import com.sellam.store.products.models.ProductEntity;
-import com.sellam.store.products.repositories.ProductsRepository;
 import com.sellam.store.sales.dto.SaleDTO;
 import com.sellam.store.sales.models.SaleEntity;
-import com.sellam.store.sales.models.SaleStatusEnum;
 import com.sellam.store.sales.repositories.SalesRepository;
-import com.sellam.store.shops.models.ShopEntity;
-import com.sellam.store.shops.repositories.ShopRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -19,80 +12,24 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Service de LECTURE des ventes (dashboard, bilan journalier).
+ * La création de ventes passe désormais exclusivement par InvoiceService.addLine().
+ */
 @Service
 public class SalesService
 {
 
     private final SalesRepository salesRepository;
 
-    private final ProductsRepository productsRepository;
-
-    private final ShopRepository shopRepository;
-
-
-    public SalesService
-            (
-            SalesRepository salesRepository,
-            ProductsRepository productsRepository,
-            ShopRepository shopRepository
-            )
+    public SalesService(SalesRepository salesRepository)
     {
         this.salesRepository = salesRepository;
-
-        this.productsRepository = productsRepository;
-
-        this.shopRepository = shopRepository;
-    }
-
-    @Transactional
-    public SaleDTO.SaleResponse registerSale
-            (
-            SaleDTO.SaleRequest request,
-            UUID shopId
-            )
-    {
-
-        ProductEntity product = productsRepository.findById(request.getProductId())
-                .orElseThrow(() -> new IllegalArgumentException("Produit introuvable"));
-
-        ShopEntity shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new IllegalArgumentException("Boutique introuvable"));
-
-
-        if (product.getStockQuantity().compareTo(request.getQuantity()) < 0) {
-            throw new IllegalArgumentException("Stock insuffisant pour ce produit");
-        }
-
-
-        BigDecimal totalPrice = product.getSellingPrice().multiply(request.getQuantity());
-
-        BigDecimal margin = product.getSellingPrice()
-                .subtract(product.getPurchasePrice())
-                .multiply(request.getQuantity());
-
-
-        product.setStockQuantity(product.getStockQuantity().subtract(request.getQuantity()));
-
-        productsRepository.save(product);
-
-        SaleEntity sale = SaleEntity.builder()
-                                    .product(product)
-                                    .shop(shop)
-                                    .quantity(request.getQuantity())
-                                    .totalPrice(totalPrice)
-                                    .margin(margin)
-                                    .status(SaleStatusEnum.CONFIRMED)
-                                    .build();
-
-        SaleEntity saved = salesRepository.save(sale);
-
-        return toResponse(saved);
     }
 
     public List<SaleDTO.SaleResponse> listTodaySales(UUID shopId)
     {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-
         LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
 
         return salesRepository.findByShop_IdAndSoldAtBetweenOrderBySoldAtDesc(shopId, startOfDay, endOfDay)
@@ -141,7 +78,7 @@ public class SalesService
                 .quantity(sale.getQuantity())
                 .totalPrice(sale.getTotalPrice())
                 .margin(sale.getMargin())
-                .status(sale.getStatus().name())
+                .status(sale.getStatus() != null ? sale.getStatus().name() : "CONFIRMED")
                 .soldAt(sale.getSoldAt())
                 .build();
     }

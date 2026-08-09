@@ -1,5 +1,7 @@
 package com.sellam.store.sales.models;
 
+import com.sellam.store.invoices.models.DiscountTypeEnum;
+import com.sellam.store.invoices.models.InvoiceEntity;
 import com.sellam.store.products.models.ProductEntity;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.users.models.UserEntity;
@@ -53,4 +55,16 @@ public class SaleEntity
     @ManyToOne
     @JoinColumn(name = "shop_id", nullable = false)
     private ShopEntity shop;
+
+    @ManyToOne
+    @JoinColumn(name = "invoice_id", nullable = false)
+    private InvoiceEntity invoice;
+
+    @Enumerated(EnumType.STRING)
+    private DiscountTypeEnum discountType;
+    private BigDecimal discountValue;
+
+    private BigDecimal lineSubtotal;
+    private BigDecimal discountAmount;
+
 }

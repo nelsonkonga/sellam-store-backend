@@ -21,16 +21,9 @@ public class SalesRestController
         this.salesService = salesService;
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public SaleDTO.SaleResponse registerSale
-            (
-            @RequestBody SaleDTO.SaleRequest request,
-            @RequestParam UUID shopId
-            )
-    {
-        return salesService.registerSale(request, shopId);
-    }
+    // La création de ventes passe désormais exclusivement par les factures
+    // (POST /api/invoices/{id}/lines). Ce contrôleur ne conserve que les endpoints
+    // de LECTURE utilisés par le dashboard.
 
 
     @GetMapping("/today")
