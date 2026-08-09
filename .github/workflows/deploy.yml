@@ -1,28 +1,43 @@
-name: Deploy to Alwaysdata
+name: Deploy Backend to AlwaysData
 
 on:
   push:
-    branches:
-      - main 
+    branches: [ main ]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Fetch code from GitHub
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # Étape 1 de Claude : Vérifier s'il y a des conflits de fichiers
+      - name: Debug - list workflow files
+        run: |
+          echo "=== Fichiers de workflow présents ==="
+          ls -la .github/workflows/
+          echo "=== Branche actuelle ==="
+          git branch --show-current
+
+      # Étape 2 de Claude : Forcer proprement Temurin Java 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
-          cache: 'maven'
+          java-version: '21'
+          cache: maven
 
-      - name: Build production JAR with Maven
-        run: mvn clean package -DskipTests
+      # Étape 3 de Claude : Afficher la version réelle dans la console
+      - name: Verify Java version actually active
+        run: |
+          echo "JAVA_HOME = $JAVA_HOME"
+          java -version
 
-      - name: Upload files via SFTP
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -Dmaven.test.skip=true
+
+      - name: Upload JAR via SFTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.SFTP_SERVER }}
@@ -32,3 +47,4 @@ jobs:
           protocol: sftp
           local-dir: ./target/
           server-dir: ./
+          file-name-regex: '.*\.jar$'
