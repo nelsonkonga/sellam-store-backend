@@ -12,18 +12,14 @@ jobs:
       - name: Fetch code from GitHub
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Force Java 21 Installation
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
+          distribution: 'microsoft'
 
       - name: Build production JAR with Maven
-        run:  |
-          export JAVA_HOME=$JAVA_HOME_21_X64
-          export PATH=$JAVA_HOME/bin:$PATH
-          mvn clean package -DskipTests -Dmaven.test.skip=true
+        run: mvn clean package -DskipTests -Dmaven.test.skip=true
 
       - name: Upload files via SFTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
