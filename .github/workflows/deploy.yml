@@ -1,4 +1,4 @@
-name: Deploy Backend to AlwaysData
+name: Deploy Backend to Railway
 
 on:
   push:
@@ -31,4 +31,4 @@ jobs:
           port: 22
           source: "target/*.jar"
           target: "/home/sellam-backend/"
-          strip_components: 1 # Évite de recréer le dossier "target" sur Alwaysdata
+          strip_components: 1 # Évite de recréer le dossier "target" sur Railway
