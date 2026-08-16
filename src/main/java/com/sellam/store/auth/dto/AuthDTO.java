@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
 
 
 public class AuthDTO
@@ -32,11 +33,11 @@ public class AuthDTO
     @Builder
     public static class LoginRequest
     {
-        @NonNull
-        String identifier;
+        @NotBlank(message = "L'identifiant (email ou téléphone) est requis")
+        private String identifier;
 
-        @NonNull
-        String password;
+        @NotBlank(message = "Le mot de passe est requis")
+        private String password;
     }
 
     @Data
