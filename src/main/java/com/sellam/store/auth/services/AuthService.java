@@ -14,7 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -28,11 +32,91 @@ public class AuthService
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
 
+    private List<String> buildPhoneLookupCandidates(String phoneNumber)
+    {
+        Set<String> candidates = new LinkedHashSet<>();
+        if (phoneNumber == null)
+        {
+            return new ArrayList<>();
+        }
+
+        String trimmed = phoneNumber.trim();
+        if (trimmed.isBlank())
+        {
+            return new ArrayList<>();
+        }
+
+        candidates.add(trimmed);
+
+        String withoutPlus = trimmed.startsWith("+") ? trimmed.substring(1) : trimmed;
+        if (!withoutPlus.equals(trimmed))
+        {
+            candidates.add(withoutPlus);
+        }
+
+        String withoutInternationalPrefix = trimmed.startsWith("00") ? trimmed.substring(2) : trimmed;
+        if (!withoutInternationalPrefix.equals(trimmed))
+        {
+            candidates.add(withoutInternationalPrefix);
+        }
+
+        String digitsOnly = trimmed.replaceAll("\\D+", "");
+        if (!digitsOnly.isEmpty())
+        {
+            candidates.add(digitsOnly);
+            if (digitsOnly.length() > 3)
+            {
+                candidates.add(digitsOnly.substring(3));
+            }
+            if (digitsOnly.length() > 9)
+            {
+                candidates.add(digitsOnly.substring(digitsOnly.length() - 9));
+            }
+        }
+
+        return new ArrayList<>(candidates);
+    }
+
+    private Optional<AccountEntity> findAccountByPhoneNumber(String phoneNumber)
+    {
+        for (String candidate : buildPhoneLookupCandidates(phoneNumber))
+        {
+            Optional<AccountEntity> account = accountRepository.findByPhoneNumber(candidate);
+            if (account.isPresent())
+            {
+                return account;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<UserEntity> findUserByPhoneNumber(String phoneNumber)
+    {
+        for (String candidate : buildPhoneLookupCandidates(phoneNumber))
+        {
+            Optional<UserEntity> user = userRepository.findByPhoneNumber(candidate);
+            if (user.isPresent())
+            {
+                return user;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<UserEntity> findUserByEmail(String email)
+    {
+        if (email == null || email.isBlank())
+        {
+            return Optional.empty();
+        }
+        return userRepository.findByEmail(email.trim());
+    }
+
     @Transactional
     public AuthDTO.AuthResponse register(AuthDTO.RegisterRequest request)
     {
 
-        if (accountRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent())
+        if (findAccountByPhoneNumber(request.getPhoneNumber()).isPresent())
         {
             throw new IllegalArgumentException("Ce numéro de téléphone est déjà utilisé");
         }
@@ -128,7 +212,7 @@ public class AuthService
 
         Optional<AccountEntity> optAccount = identifier.contains("@")
                 ? accountRepository.findByEmail(identifier)
-                : accountRepository.findByPhoneNumber(identifier);
+                : findAccountByPhoneNumber(identifier);
 
         if (optAccount.isPresent()) {
             AccountEntity account = optAccount.get();
@@ -149,8 +233,8 @@ public class AuthService
         }
 
         Optional<UserEntity> optUser = identifier.contains("@")
-                ? Optional.empty()
-                : userRepository.findByPhoneNumber(identifier);
+                ? findUserByEmail(identifier)
+                : findUserByPhoneNumber(identifier);
 
         if (optUser.isPresent())
         {
@@ -171,6 +255,7 @@ public class AuthService
                     .shopId(user.getShop().getId().toString())
                     .name(user.getName())
                     .phoneNumber(user.getPhoneNumber())
+                    .email(user.getEmail())
                     .build();
         }
 
@@ -180,7 +265,7 @@ public class AuthService
     @Transactional
     public AuthDTO.ForgotPasswordResponse forgotPassword(AuthDTO.ForgotPasswordRequest request)
     {
-        AccountEntity account = accountRepository.findByPhoneNumber(request.getPhoneNumber())
+        AccountEntity account = findAccountByPhoneNumber(request.getPhoneNumber())
                                                  .orElseThrow(() -> new IllegalArgumentException("Aucun compte trouvé avec ce numéro de téléphone"));
 
         String resetToken = UUID.randomUUID().toString();

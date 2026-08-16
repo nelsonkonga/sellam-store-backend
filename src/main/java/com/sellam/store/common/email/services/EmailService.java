@@ -1,13 +1,18 @@
 package com.sellam.store.common.email.services;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EmailService {
 
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
     private final JavaMailSender mailSender;
 
     @Value("${app.frontend-url:http://localhost:5173}")
@@ -17,6 +22,18 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    private void sendMailSafely(SimpleMailMessage message, String description) {
+        try {
+            mailSender.send(message);
+            log.info("Email sent successfully: {}", description);
+        } catch (MailException e) {
+            log.warn("Failed to send email ({}): {} - will retry asynchronously if configured", description, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Unexpected error sending email ({}): {}", description, e.getMessage(), e);
+        }
+    }
+
+    @Async
     public void sendVerificationEmail(String toEmail, String token) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
@@ -28,9 +45,10 @@ public class EmailService {
                         "Ce lien expire dans 24 heures.\n\n" +
                         "L'équipe Sellam"
         );
-        mailSender.send(message);
+        sendMailSafely(message, "verification email for " + toEmail);
     }
 
+    @Async
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
@@ -43,9 +61,10 @@ public class EmailService {
                         "Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.\n\n" +
                         "L'équipe Sellam"
         );
-        mailSender.send(message);
+        sendMailSafely(message, "password reset email for " + toEmail);
     }
 
+    @Async
     public void sendBalanceReminderEmail(String toEmail, String shopName) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
@@ -57,6 +76,6 @@ public class EmailService {
                         frontendUrl + "/daily-balance\n\n" +
                         "L'équipe Sellam"
         );
-        mailSender.send(message);
+        sendMailSafely(message, "balance reminder email for " + shopName + " to " + toEmail);
     }
 }

@@ -15,6 +15,7 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<UserEntity, UUID>
 {
     Optional<UserEntity> findByPhoneNumber(String phoneNumber);
+    Optional<UserEntity> findByEmail(String email);
     List<UserEntity> findByShop_Id(UUID shopId);
 
     @Query("SELECT u.shop.id FROM UserEntity u WHERE u.id = :userId")
