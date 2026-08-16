@@ -5,6 +5,7 @@ import com.sellam.store.saletypes.models.SaleTypeEntity;
 import com.sellam.store.saletypes.repositories.SaleTypeRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,29 +14,31 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class SaleTypeService {
+@AllArgsConstructor
+public class SaleTypeService
+{
     private final SaleTypeRepository saleTypeRepository;
     private final ShopRepository shopRepository;
 
-    public SaleTypeService(SaleTypeRepository saleTypeRepository, ShopRepository shopRepository) {
-        this.saleTypeRepository = saleTypeRepository;
-        this.shopRepository = shopRepository;
-    }
 
-    public List<SaleTypeDTO.Response> listAvailableTypes(UUID shopId) {
+    public List<SaleTypeDTO.SaleTypeResponse> listAvailableTypes(UUID shopId)
+    {
         return saleTypeRepository.findByIsDefaultTrueOrShop_Id(shopId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public SaleTypeDTO.Response createCustomType(UUID shopId, SaleTypeDTO.Request request) {
+    public SaleTypeDTO.SaleTypeResponse createCustomType(UUID shopId,
+                                                         SaleTypeDTO.SaleTypeRequest saleTypeRequest
+                                                            )
+    {
         ShopEntity shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new IllegalArgumentException("Boutique introuvable"));
 
         SaleTypeEntity entity = SaleTypeEntity.builder()
-                .name(request.getName())
-                .unitLabel(request.getUnitLabel())
+                .name(saleTypeRequest.getName())
+                .unitLabel(saleTypeRequest.getUnitLabel())
                 .isDefault(false)
                 .shop(shop)
                 .build();
@@ -43,8 +46,9 @@ public class SaleTypeService {
         return toResponse(saleTypeRepository.save(entity));
     }
 
-    private SaleTypeDTO.Response toResponse(SaleTypeEntity entity) {
-        return SaleTypeDTO.Response.builder()
+    private SaleTypeDTO.SaleTypeResponse toResponse(SaleTypeEntity entity)
+    {
+        return SaleTypeDTO.SaleTypeResponse.builder()
                 .id(entity.getId())
                 .name(entity.getName())
                 .unitLabel(entity.getUnitLabel())

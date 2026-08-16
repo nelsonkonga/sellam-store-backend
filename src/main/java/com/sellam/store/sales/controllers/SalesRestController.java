@@ -1,42 +1,49 @@
 package com.sellam.store.sales.controllers;
 
+import com.sellam.store.common.security.ShopAccessGuard;
 import com.sellam.store.sales.dto.SaleDTO;
 import com.sellam.store.sales.services.SalesService;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/sales")
 public class SalesRestController
 {
 
     private final SalesService salesService;
+    private final ShopAccessGuard shopAccessGuard;
 
-    public SalesRestController(SalesService salesService
-    )
-    {
-        this.salesService = salesService;
-    }
-
-    // La création de ventes passe désormais exclusivement par les factures
-    // (POST /api/invoices/{id}/lines). Ce contrôleur ne conserve que les endpoints
-    // de LECTURE utilisés par le dashboard.
-
-
+    // Les ventes du jour sont nécessaires au quotidien pour tout employé
+    // qui facture (tableau de bord, etc.) — pas de restriction au-delà de l'auth.
     @GetMapping("/today")
     @ResponseStatus(HttpStatus.OK)
-    public List<SaleDTO.SaleResponse> listTodaySales(@RequestParam UUID shopId)
+    public List<SaleDTO.SaleResponse> listTodaySales(
+            @RequestParam UUID shopId,
+            Authentication authentication
+    )
     {
+        shopAccessGuard.requireShopAccess(authentication, shopId);
         return salesService.listTodaySales(shopId);
     }
 
+    @PreAuthorize("@sec.can(authentication, 'VIEW_SALES_HISTORY')")
     @GetMapping("/shop/{shopId}")
     @ResponseStatus(HttpStatus.OK)
-    public List<SaleDTO.SaleResponse> listSalesByPeriod(@PathVariable UUID shopId, @RequestParam(defaultValue = "recent") String period)
+    public List<SaleDTO.SaleResponse> listSalesByPeriod(
+            @PathVariable UUID shopId,
+            @RequestParam(defaultValue = "recent") String period,
+            Authentication authentication
+    )
     {
+        shopAccessGuard.requireShopAccess(authentication, shopId);
         return salesService.listSalesByPeriod(shopId, period);
     }
 }

@@ -5,17 +5,22 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.Pattern;
 
+import java.util.Set;
 import java.util.UUID;
 
-public class UserDTO {
+public class UserDTO
+{
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    public static class CreateUserRequest {
+    public static class CreateUserRequest
+    {
         private String name;
+        @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Le numéro doit être au format international E.164 (ex: +237690000000)")
         private String phoneNumber;
         private String password;
         private RoleEnum role;
@@ -25,8 +30,10 @@ public class UserDTO {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    public static class UpdateUserRequest {
+    public static class UpdateUserRequest
+    {
         private String name;
+        @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Le numéro doit être au format international E.164 (ex: +237690000000)")
         private String phoneNumber;
         private RoleEnum role;
     }
@@ -35,7 +42,8 @@ public class UserDTO {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    public static class ChangePasswordRequest {
+    public static class ChangePasswordRequest
+    {
         private String newPassword;
     }
 
@@ -43,7 +51,8 @@ public class UserDTO {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    public static class UserResponse {
+    public static class UserResponse
+    {
         private UUID id;
         private String name;
         private String phoneNumber;
@@ -52,5 +61,28 @@ public class UserDTO {
         private boolean active;
         private UUID shopId;
         private String shopName;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class UpdatePermissionsRequest
+    {
+        private Set<String> grantedOverrides;
+        private Set<String> revokedOverrides;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class PermissionsResponse
+    {
+        private String role;
+        private Set<String> defaultPermissions;
+        private Set<String> grantedOverrides;
+        private Set<String> revokedOverrides;
+        private Set<String> effectivePermissions;
     }
 }

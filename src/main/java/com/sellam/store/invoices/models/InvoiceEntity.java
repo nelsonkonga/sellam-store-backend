@@ -49,6 +49,8 @@ public class InvoiceEntity
     @Enumerated(EnumType.STRING)
     private InvoiceStatusEnum status;
 
+    private String validatedByName;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;

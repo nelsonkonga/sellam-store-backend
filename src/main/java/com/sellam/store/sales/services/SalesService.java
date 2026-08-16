@@ -3,6 +3,7 @@ package com.sellam.store.sales.services;
 import com.sellam.store.sales.dto.SaleDTO;
 import com.sellam.store.sales.models.SaleEntity;
 import com.sellam.store.sales.repositories.SalesRepository;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,15 +18,11 @@ import java.util.stream.Collectors;
  * La création de ventes passe désormais exclusivement par InvoiceService.addLine().
  */
 @Service
+@AllArgsConstructor
 public class SalesService
 {
 
     private final SalesRepository salesRepository;
-
-    public SalesService(SalesRepository salesRepository)
-    {
-        this.salesRepository = salesRepository;
-    }
 
     public List<SaleDTO.SaleResponse> listTodaySales(UUID shopId)
     {
@@ -38,8 +35,10 @@ public class SalesService
                 .collect(Collectors.toList());
     }
 
-    public List<SaleDTO.SaleResponse> listSalesByPeriod(UUID shopId, String period) {
-        if ("recent".equalsIgnoreCase(period) || period == null || period.isEmpty()) {
+    public List<SaleDTO.SaleResponse> listSalesByPeriod(UUID shopId, String period)
+    {
+        if ("recent".equalsIgnoreCase(period) || period == null || period.isEmpty())
+        {
             return salesRepository.findTop5ByShop_IdOrderBySoldAtDesc(shopId)
                     .stream().map(this::toResponse).collect(Collectors.toList());
         }
@@ -47,21 +46,12 @@ public class SalesService
         LocalDateTime start;
         LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
 
-        switch (period.toLowerCase()) {
-            case "this_week":
-            case "cette_semaine":
-                start = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).atStartOfDay();
-                break;
-            case "this_month":
-            case "ce_mois":
-                start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-                break;
-            case "today":
-            case "aujourd_hui":
-            default:
-                start = LocalDate.now().atStartOfDay();
-                break;
-        }
+        start = switch (period.toLowerCase()) {
+            case "this_week", "cette_semaine" ->
+                    LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).atStartOfDay();
+            case "this_month", "ce_mois" -> LocalDate.now().withDayOfMonth(1).atStartOfDay();
+            default -> LocalDate.now().atStartOfDay();
+        };
 
         return salesRepository.findByShop_IdAndSoldAtBetweenOrderBySoldAtDesc(shopId, start, end)
                 .stream()

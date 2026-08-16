@@ -49,6 +49,8 @@ public class ProductEntity
 
     private String category;
 
+    private String brand;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -65,23 +67,5 @@ public class ProductEntity
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<SaleEntity> sales;
-
-    public SaleEntity registerSale(BigDecimal quantity)
-    {
-        return null;
-    }
-
-    public boolean isLowStock()
-    {
-        return false;
-    }
-
-    public BigDecimal calculateMargin(BigDecimal quantity)
-    {
-        return null;
-    }
-
-
-
 
 }

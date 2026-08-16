@@ -31,4 +31,11 @@ public class BalanceSettingsEntity
     private LocalTime balanceTime;
 
     private Integer reminderFrequencyHours;
+
+    @Builder.Default
+    private boolean enabled = true; // Par défaut, tous les jours sont actifs
+
+    private LocalTime openingTime; // Heure d'ouverture de la boutique ce jour
+
+    private LocalTime closingTime; // Heure de fermeture de la boutique ce jour
 }

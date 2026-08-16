@@ -33,11 +33,16 @@ public class AccountEntity
 
     private String email;
 
+    @Builder.Default
     private boolean emailVerified = false;
 
     private String verificationToken;
 
     private LocalDateTime verificationTokenExpiresAt;
+
+    private String resetToken;
+
+    private LocalDateTime resetTokenExpiresAt;
 
     private String passwordHash;
 
@@ -58,9 +63,5 @@ public class AccountEntity
 
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
     private List<ShopEntity> shops;
-
-    public ShopEntity createShop(ShopEntity shop){
-        return null;
-    }
 
 }

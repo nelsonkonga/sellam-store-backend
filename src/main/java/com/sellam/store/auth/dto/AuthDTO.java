@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
+import jakarta.validation.constraints.Pattern;
 
 
 public class AuthDTO
@@ -11,12 +12,13 @@ public class AuthDTO
     @Data
     @AllArgsConstructor
     @Builder
-    public static class RegisterInput
+    public static class RegisterRequest
     {
         @NonNull
         private String name;
 
         @NonNull
+        @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Le numéro doit être au format international E.164 (ex: +237690000000)")
         private String phoneNumber;
 
         @NonNull
@@ -28,10 +30,10 @@ public class AuthDTO
     @Data
     @AllArgsConstructor
     @Builder
-    public static class LoginInput
+    public static class LoginRequest
     {
         @NonNull
-        String phoneNumber;
+        String identifier;
 
         @NonNull
         String password;
@@ -40,7 +42,7 @@ public class AuthDTO
     @Data
     @AllArgsConstructor
     @Builder
-    public static class AuthOutput
+    public static class AuthResponse
     {
          String token;
 
@@ -58,5 +60,43 @@ public class AuthDTO
 
         boolean emailVerified;
 
+    }
+
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class ForgotPasswordRequest
+    {
+        @NonNull
+        @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Le numéro doit être au format international E.164 (ex: +237690000000)")
+        private String phoneNumber;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class ForgotPasswordResponse
+    {
+        private String message;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class ResetPasswordRequest
+    {
+        @NonNull
+        private String resetToken;
+
+        @NonNull
+        private String newPassword;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class ResetPasswordResponse
+    {
+        private String message;
     }
 }

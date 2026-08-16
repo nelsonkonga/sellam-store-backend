@@ -1,5 +1,16 @@
-### Maven ###
+# ============================================================
+# Sellam Backend — Spring Boot / Maven
+# ============================================================
+
+# ----- Maven / Java build output -----
 target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -9,43 +20,66 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
-### STS ###
-.apt_generated
+# ----- Spring Boot / IDE -----
+.apt_generated/
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
+.sts4-cache/
+.idea/
 *.iws
 *.iml
 *.ipr
-out/
 .run/
-
-### NetBeans ###
+.nb-gradle/
 /nbproject/private/
 /nbbuild/
-/dist/
 /nbdist/
-/.nb-gradle/
-build/
+/dist/
 
-### VS Code ###
+# ----- VS Code -----
 .vscode/
 
-### OS ###
+# ----- OS -----
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-### Logs ###
+# ----- Logs / runtime -----
 *.log
 logs/
+*.pid
+hs_err_pid*
+compile_log.txt
 
-### Fichiers sensibles (à ne jamais pousser) ###
+# ----- Secrets / env -----
+.env
+.env.*
+!.env.example
 application-local.properties
 application-dev.properties
-*.env
+application-prod.properties
+!application.properties
+local.properties
+*.secret
+secrets.*
+
+# ----- Fichiers locaux / brouillons -----
+MIGRATIONS.sql
+*.tmp
+*.bak
+*.orig
+*.swp
+*~
+
+# ----- Outils locaux -----
+.terraform/
+.venv/
+venv/
+.python-version
+
+# ----- Gemini / Antigravity -----
+.agents/
+.gemini/

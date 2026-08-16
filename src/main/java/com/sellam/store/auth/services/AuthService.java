@@ -8,6 +8,7 @@ import com.sellam.store.auth.JwtProvider;
 import com.sellam.store.auth.dto.AuthDTO;
 import com.sellam.store.common.email.services.EmailService;
 import com.sellam.store.common.exception.ResourceNotFoundException;
+import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +18,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class AuthService {
+@AllArgsConstructor
+public class AuthService
+{
 
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
@@ -25,22 +28,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
 
-    public AuthService(AccountRepository accountRepository,
-                       UserRepository userRepository,
-                       EmailService emailService,
-                       PasswordEncoder passwordEncoder,
-                       JwtProvider jwtProvider) {
-        this.accountRepository = accountRepository;
-        this.userRepository = userRepository;
-        this.emailService = emailService;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtProvider = jwtProvider;
-    }
-
     @Transactional
-    public AuthDTO.AuthOutput register(AuthDTO.RegisterInput request) {
+    public AuthDTO.AuthResponse register(AuthDTO.RegisterRequest request)
+    {
 
-        if (accountRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent()) {
+        if (accountRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent())
+        {
             throw new IllegalArgumentException("Ce numéro de téléphone est déjà utilisé");
         }
 
@@ -51,8 +44,10 @@ public class AuthService {
 
         String verificationToken = null;
 
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            if (accountRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (request.getEmail() != null && !request.getEmail().isBlank())
+        {
+            if (accountRepository.findByEmail(request.getEmail()).isPresent())
+            {
                 throw new IllegalArgumentException("Cet email est déjà utilisé");
             }
 
@@ -68,13 +63,14 @@ public class AuthService {
         AccountEntity account = accountBuilder.build();
         AccountEntity savedAccount = accountRepository.save(account);
 
-        if (savedAccount.getEmail() != null) {
+        if (savedAccount.getEmail() != null)
+        {
             emailService.sendVerificationEmail(savedAccount.getEmail(), verificationToken);
         }
 
         String token = jwtProvider.generateToken(savedAccount.getId(), "ACCOUNT", null, savedAccount.getPhoneNumber());
 
-        return AuthDTO.AuthOutput.builder()
+        return AuthDTO.AuthResponse.builder()
                 .token(token)
                 .accountId(savedAccount.getId().toString())
                 .userType("ACCOUNT")
@@ -119,23 +115,31 @@ public class AuthService {
         account.setVerificationToken(newToken);
         account.setVerificationTokenExpiresAt(LocalDateTime.now().plusHours(24));
         accountRepository.save(account);
-
         emailService.sendVerificationEmail(account.getEmail(), newToken);
     }
 
-    public AuthDTO.AuthOutput login(AuthDTO.LoginInput request) {
+    public AuthDTO.AuthResponse login(AuthDTO.LoginRequest request)
+    {
+        String identifier = request.getIdentifier() == null ? "" : request.getIdentifier().trim();
+        if (identifier.isBlank())
+        {
+            throw new IllegalArgumentException("Identifiant requis");
+        }
 
-        // 1. Chercher d'abord dans les comptes (gérants globaux)
-        Optional<AccountEntity> optAccount = accountRepository.findByPhoneNumber(request.getPhoneNumber());
+        Optional<AccountEntity> optAccount = identifier.contains("@")
+                ? accountRepository.findByEmail(identifier)
+                : accountRepository.findByPhoneNumber(identifier);
+
         if (optAccount.isPresent()) {
             AccountEntity account = optAccount.get();
-            if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
-                throw new IllegalArgumentException("Numéro ou mot de passe incorrect");
+            if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash()))
+            {
+                throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
             }
             String token = jwtProvider.generateToken(account.getId(), "ACCOUNT", null, account.getPhoneNumber());
-            return AuthDTO.AuthOutput.builder()
+            return AuthDTO.AuthResponse.builder()
                     .token(token)
-                    .accountId(account.getId().toString()) 
+                    .accountId(account.getId().toString())
                     .userType("ACCOUNT")
                     .name(account.getName())
                     .phoneNumber(account.getPhoneNumber())
@@ -144,18 +148,23 @@ public class AuthService {
                     .build();
         }
 
-        // 2. Si pas trouvé, chercher dans les employés (Users)
-        Optional<UserEntity> optUser = userRepository.findByPhoneNumber(request.getPhoneNumber());
-        if (optUser.isPresent()) {
+        Optional<UserEntity> optUser = identifier.contains("@")
+                ? Optional.empty()
+                : userRepository.findByPhoneNumber(identifier);
+
+        if (optUser.isPresent())
+        {
             UserEntity user = optUser.get();
-            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-                throw new IllegalArgumentException("Numéro ou mot de passe incorrect");
+            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
+            {
+                throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
             }
-            if (!user.isActive()) {
+            if (!user.isActive())
+            {
                 throw new IllegalArgumentException("Ce compte employé a été désactivé");
             }
             String token = jwtProvider.generateToken(user.getId(), "USER", user.getShop().getId(), user.getPhoneNumber());
-            return AuthDTO.AuthOutput.builder()
+            return AuthDTO.AuthResponse.builder()
                     .token(token)
                     .accountId(user.getId().toString())
                     .userType("USER")
@@ -165,6 +174,49 @@ public class AuthService {
                     .build();
         }
 
-        throw new IllegalArgumentException("Numéro ou mot de passe incorrect");
+        throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
+    }
+
+    @Transactional
+    public AuthDTO.ForgotPasswordResponse forgotPassword(AuthDTO.ForgotPasswordRequest request)
+    {
+        AccountEntity account = accountRepository.findByPhoneNumber(request.getPhoneNumber())
+                                                 .orElseThrow(() -> new IllegalArgumentException("Aucun compte trouvé avec ce numéro de téléphone"));
+
+        String resetToken = UUID.randomUUID().toString();
+        account.setResetToken(resetToken);
+        account.setResetTokenExpiresAt(LocalDateTime.now().plusHours(1)); // Token valide 1 heure
+        accountRepository.save(account);
+
+        // Envoyer l'email avec le lien de reset (ou afficher le token directement en dev)
+        if (account.getEmail() != null && !account.getEmail().isBlank())
+        {
+            emailService.sendPasswordResetEmail(account.getEmail(), resetToken);
+        }
+
+        return AuthDTO.ForgotPasswordResponse.builder()
+                .message("Un lien de réinitialisation a été envoyé à votre email. Si vous n'avez pas d'email, veuillez contacter l'administrateur.")
+                .build();
+    }
+
+    @Transactional
+    public AuthDTO.ResetPasswordResponse resetPassword(AuthDTO.ResetPasswordRequest request)
+    {
+        AccountEntity account = accountRepository.findByResetToken(request.getResetToken())
+                                                 .orElseThrow(() -> new IllegalArgumentException("Lien de réinitialisation invalide"));
+
+        if (account.getResetTokenExpiresAt().isBefore(LocalDateTime.now()))
+        {
+            throw new IllegalArgumentException("Ce lien a expiré, demandez-en un nouveau");
+        }
+
+        account.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        account.setResetToken(null);
+        account.setResetTokenExpiresAt(null);
+        accountRepository.save(account);
+
+        return AuthDTO.ResetPasswordResponse.builder()
+                .message("Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.")
+                .build();
     }
 }

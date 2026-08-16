@@ -35,10 +35,14 @@ public class ShopEntity
     @Column(columnDefinition = "TEXT")
     private String logoUrl;
 
+    private String phoneNumber;
+    private String taxpayerNumber; // numéro de contribuable
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    @Builder.Default
     private Boolean autoPrintInvoices = false;
 
     @ManyToOne

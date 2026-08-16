@@ -37,8 +37,11 @@ public class InvoiceDTO
     @Builder
     public static class ApplyInvoiceDiscountRequest
     {
-        @NonNull private String discountType;
-        @NonNull private BigDecimal discountValue;
+        @NonNull
+        private String discountType;
+
+        @NonNull
+        private BigDecimal discountValue;
     }
 
     @Data
@@ -68,6 +71,7 @@ public class InvoiceDTO
         private BigDecimal discountAmount;
         private BigDecimal totalAmount;
         private String status;
+        private String validatedByName;
         private LocalDateTime createdAt;
     }
 }

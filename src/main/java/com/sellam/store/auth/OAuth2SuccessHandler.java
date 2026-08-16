@@ -4,6 +4,7 @@ import com.sellam.store.accounts.models.AccountEntity;
 import com.sellam.store.accounts.repositories.AccountRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -16,6 +17,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 @Component
+@RequiredArgsConstructor
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
 {
 
@@ -25,20 +27,21 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
-    public OAuth2SuccessHandler(AccountRepository accountRepository, JwtProvider jwtProvider)
-    {
-        this.accountRepository = accountRepository;
-        this.jwtProvider = jwtProvider;
-    }
-
     @Override
     public void onAuthenticationSuccess(@NonNull HttpServletRequest request,
                                         @NonNull HttpServletResponse response,
-                                        Authentication authentication) throws IOException
+                                        @NonNull Authentication authentication) throws IOException
     {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentification manquante ou invalide");
+            return;
+        }
 
-        OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
-        assert oauthUser != null;
+        if (!(authentication.getPrincipal() instanceof OAuth2User oauthUser)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Le principal n'est pas un utilisateur OAuth2");
+            return;
+        }
+
         String email = oauthUser.getAttribute("email");
         String name = oauthUser.getAttribute("name");
         String googleId = oauthUser.getAttribute("sub");
@@ -55,7 +58,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
                     return accountRepository.save(newAccount);
                 });
 
-        if (account.getOauthProvider() == null) {
+        if (account.getOauthProvider() == null)
+        {
             account.setOauthProvider("google");
             account.setOauthId(googleId);
             account.setEmailVerified(true);

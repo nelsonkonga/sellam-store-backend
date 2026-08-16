@@ -2,10 +2,12 @@ package com.sellam.store.common.config;
 
 import com.sellam.store.auth.OAuth2SuccessHandler;
 import com.sellam.store.common.security.JwtAuthFilter;
+import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -22,19 +24,13 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@AllArgsConstructor
+@EnableMethodSecurity // nécessaire pour que @PreAuthorize soit pris en compte
 public class SecurityConfig
 {
     private final JwtAuthFilter jwtAuthFilter;
 
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
-
-
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, OAuth2SuccessHandler oAuth2SuccessHandler)
-    {
-        this.jwtAuthFilter = jwtAuthFilter;
-
-        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
-    }
 
 
     @Bean
@@ -46,6 +42,7 @@ public class SecurityConfig
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/auth/oauth2/**", "/login/oauth2/**").permitAll()
+                        .requestMatchers("/api/notifications/push/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

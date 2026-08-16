@@ -27,14 +27,16 @@ public class ShopService
     {
 
         AccountEntity account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Compte introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Compte introuvable"));
 
         ShopEntity shop = ShopEntity.builder()
-                                    .name(request.getName())
-                                    .address(request.getAddress())
-                                    .logoUrl(request.getLogoUrl())
-                                    .account(account)
-                                    .build();
+                .name(request.getName())
+                .address(request.getAddress())
+                .logoUrl(request.getLogoUrl())
+                .phoneNumber(request.getPhoneNumber())
+                .taxpayerNumber(request.getTaxpayerNumber())
+                .account(account)
+                .build();
 
         ShopEntity newShop = shopRepository.save(shop);
         return toResponse(newShop);
@@ -56,13 +58,15 @@ public class ShopService
 
     private ShopDTO.ShopResponse toResponse(ShopEntity shop)
     {
-        return new ShopDTO.ShopResponse(
-                shop.getId(),
-                shop.getName(),
-                shop.getAddress(),
-                shop.getLogoUrl(),
-                shop.getAutoPrintInvoices()
-        );
+        return ShopDTO.ShopResponse.builder()
+                .id(shop.getId())
+                .name(shop.getName())
+                .address(shop.getAddress())
+                .logoUrl(shop.getLogoUrl())
+                .phoneNumber(shop.getPhoneNumber())
+                .taxpayerNumber(shop.getTaxpayerNumber())
+                .autoPrintInvoices(shop.getAutoPrintInvoices())
+                .build();
     }
 
 
@@ -73,6 +77,18 @@ public class ShopService
         if (request.getAutoPrintInvoices() != null)
         {
             shop.setAutoPrintInvoices(request.getAutoPrintInvoices());
+        }
+        if (request.getLogoUrl() != null)
+        {
+            shop.setLogoUrl(request.getLogoUrl());
+        }
+        if (request.getPhoneNumber() != null)
+        {
+            shop.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getTaxpayerNumber() != null)
+        {
+            shop.setTaxpayerNumber(request.getTaxpayerNumber());
         }
         return toResponse(shopRepository.save(shop));
     }

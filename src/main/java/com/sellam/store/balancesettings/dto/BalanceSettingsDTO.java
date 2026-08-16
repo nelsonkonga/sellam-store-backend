@@ -21,11 +21,19 @@ public class BalanceSettingsDTO
         private LocalTime balanceTime;
 
         private Integer reminderFrequencyHours;
+
+        @Builder.Default
+        private boolean enabled = true;
+
+        private LocalTime openingTime;
+
+        private LocalTime closingTime;
     }
 
 
     @Data
     @AllArgsConstructor
+    @NoArgsConstructor
     @Builder
     public static class SettingsResponse
     {
@@ -36,5 +44,11 @@ public class BalanceSettingsDTO
         private LocalTime balanceTime;
 
         private Integer reminderFrequencyHours;
+
+        private boolean enabled;
+
+        private LocalTime openingTime;
+
+        private LocalTime closingTime;
     }
 }

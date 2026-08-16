@@ -6,18 +6,19 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
-import org.springframework.data.annotation.CreatedDate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public class ProductsDTO {
+public class ProductsDTO
+{
     @Data
     @AllArgsConstructor
     @Builder
-    public static class PostInput {
+    public static class ProductRequest
+    {
 
         @NonNull @NotBlank
         String name;
@@ -44,6 +45,8 @@ public class ProductsDTO {
         @NonNull @NotBlank
         String category;
 
+        String brand;
+
         LocalDate expirationDate;
 
         @NonNull
@@ -53,7 +56,8 @@ public class ProductsDTO {
     @Data
     @AllArgsConstructor
     @Builder
-    public static class PostOutput {
+    public static class ProductResponse
+    {
         UUID id;
 
         String name;
@@ -75,6 +79,8 @@ public class ProductsDTO {
         BigDecimal alertThreshold;
 
         String category;
+
+        String brand;
 
         LocalDateTime createdAt;
 

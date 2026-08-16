@@ -11,4 +11,9 @@ import java.util.UUID;
 public interface ShopRepository extends JpaRepository<ShopEntity, UUID>
 {
     List<ShopEntity> findByAccount_Id(UUID accountId);
+
+    // Vérifie qu'une boutique donnée appartient bien à ce compte.
+    // Utilisé pour l'étanchéité entre comptes (un ACCOUNT ne doit pouvoir
+    // agir que sur ses propres boutiques).
+    boolean existsByIdAndAccount_Id(UUID id, UUID accountId);
 }

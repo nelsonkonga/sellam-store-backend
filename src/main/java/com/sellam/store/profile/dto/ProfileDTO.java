@@ -6,13 +6,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-public class ProfileDTO {
+public class ProfileDTO
+{
 
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class ThemeUpdateRequest {
+    public static class ThemeUpdateRequest
+    {
         private ThemePreferenceEnum themePreference;
     }
 
@@ -20,7 +22,8 @@ public class ProfileDTO {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class ProfileResponse {
+    public static class ProfileResponse
+    {
         private String name;
         private String phoneNumber;
         private String email;

@@ -13,4 +13,6 @@ public interface ProductsRepository extends JpaRepository<ProductEntity, UUID>
     ProductEntity findByNameAndCategory(String name, String category);
 
     List<ProductEntity> findByShop_Id(UUID shopId);
+
+    ProductEntity findByShop_IdAndNameAndCategory(UUID shopId, String name, String category);
 }

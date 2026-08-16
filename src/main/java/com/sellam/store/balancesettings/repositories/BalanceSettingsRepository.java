@@ -13,4 +13,7 @@ public interface BalanceSettingsRepository extends JpaRepository<BalanceSettings
     List<BalanceSettingsEntity> findByShop_Id(UUID shopId);
 
     Optional<BalanceSettingsEntity> findByShop_IdAndDayOfWeek(UUID shopId, DayOfWeek dayOfWeek);
+
+    // Pour le scheduler de rappels de bilan
+    List<BalanceSettingsEntity> findByDayOfWeekAndEnabled(DayOfWeek dayOfWeek, boolean enabled);
 }

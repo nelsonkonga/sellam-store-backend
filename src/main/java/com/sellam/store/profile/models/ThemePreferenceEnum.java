@@ -9,7 +9,8 @@ public enum ThemePreferenceEnum
     SYSTEM;
 
     @JsonCreator
-    public static ThemePreferenceEnum fromString(String value) {
+    public static ThemePreferenceEnum fromString(String value)
+    {
         if (value == null) return null;
         return ThemePreferenceEnum.valueOf(value.toUpperCase());
     }

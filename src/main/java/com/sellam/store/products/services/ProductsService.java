@@ -7,15 +7,19 @@ import com.sellam.store.saletypes.models.SaleTypeEntity;
 import com.sellam.store.saletypes.repositories.SaleTypeRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import io.micrometer.common.util.StringUtils;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.sellam.store.products.repositories.ProductsRepository;
 import com.sellam.store.shops.repositories.ShopRepository;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@AllArgsConstructor
+@Validated
 public class ProductsService
 {
 
@@ -25,27 +29,20 @@ public class ProductsService
 
     private final SaleTypeRepository saleTypeRepository;
 
-    public ProductsService(ProductsRepository productsRepository, ShopRepository shopRepository, SaleTypeRepository saleTypeRepository)
-    {
-        this.productsRepository = productsRepository;
-        this.shopRepository = shopRepository;
-        this.saleTypeRepository = saleTypeRepository;
-    }
 
-
-    public ProductsDTO.PostOutput createProduct(ProductsDTO.PostInput input) throws ProductsException
+    public ProductsDTO.ProductResponse createProduct(ProductsDTO.ProductRequest input) throws ProductsException
     {
         if(input.getName()==null || StringUtils.isBlank(input.getName()))
         {
             throw new ProductsException("le nom du produit ne peut pas être vide !");
         }
 
-        ProductEntity existingProduct = productsRepository.findByNameAndCategory(input.getName(),input.getCategory());
-
+        // Vérifier que le produit n'existe pas dans CETTE boutique (shopId + name + category)
+        ProductEntity existingProduct = productsRepository.findByShop_IdAndNameAndCategory(input.getShopId(), input.getName(), input.getCategory());
 
         if(existingProduct!=null)
         {
-            throw new ProductsException("Le produit existe déjà !");
+            throw new ProductsException("Le produit existe déjà dans cette boutique !");
         }
 
         ShopEntity shop = shopRepository.findById(input.getShopId())
@@ -64,6 +61,7 @@ public class ProductsService
                 .stockQuantity(input.getStockQuantity())
                 .alertThreshold(input.getAlertThreshold())
                 .category(input.getCategory())
+                .brand(input.getBrand())
                 .expirationDate(input.getExpirationDate())
                 .shop(shop)
                 .build();
@@ -75,7 +73,7 @@ public class ProductsService
     }
 
 
-    public List<ProductsDTO.PostOutput> listProducts(UUID shopId)
+    public List<ProductsDTO.ProductResponse> listProducts(UUID shopId)
     {
         return productsRepository.findByShop_Id(shopId)
                 .stream()
@@ -84,13 +82,13 @@ public class ProductsService
     }
 
 
-    public ProductsDTO.PostOutput getProductById(UUID id) {
+    public ProductsDTO.ProductResponse getProductById(UUID id) {
         ProductEntity product = productsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit Introuvable"));
         return toPostOutput(product);
     }
 
-    public ProductsDTO.PostOutput updateProduct(UUID id, ProductsDTO.PostInput input)
+    public ProductsDTO.ProductResponse updateProduct(UUID id, ProductsDTO.ProductRequest input)
     {
         ProductEntity product = productsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit Introuvable"));
@@ -107,6 +105,7 @@ public class ProductsService
         product.setStockQuantity(input.getStockQuantity());
         product.setAlertThreshold(input.getAlertThreshold());
         product.setCategory(input.getCategory());
+        product.setBrand(input.getBrand());
         product.setExpirationDate(input.getExpirationDate());
         
         productsRepository.save(product);
@@ -121,10 +120,18 @@ public class ProductsService
         return product.getStockQuantity().compareTo(product.getAlertThreshold()) <= 0;
     }
 
-
-    public ProductsDTO.PostOutput toPostOutput(ProductEntity newProduct)
+    public void updateProductPictureUrl(UUID productId, String pictureUrl)
     {
-        return ProductsDTO.PostOutput.builder()
+        ProductEntity product = productsRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit Introuvable"));
+        product.setPictureUrl(pictureUrl);
+        productsRepository.save(product);
+    }
+
+
+    public ProductsDTO.ProductResponse toPostOutput(ProductEntity newProduct)
+    {
+        return ProductsDTO.ProductResponse.builder()
                 .id(newProduct.getId())
                 .name(newProduct.getName())
                 .barcode(newProduct.getBarcode())
@@ -137,6 +144,7 @@ public class ProductsService
                 .stockQuantity(newProduct.getStockQuantity())
                 .alertThreshold(newProduct.getAlertThreshold())
                 .category(newProduct.getCategory())
+                .brand(newProduct.getBrand())
                 .createdAt(newProduct.getCreatedAt())
                 .expirationDate(newProduct.getExpirationDate())
                 .shopId(newProduct.getShop().getId())

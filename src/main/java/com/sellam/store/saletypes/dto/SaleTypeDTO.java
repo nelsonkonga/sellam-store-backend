@@ -8,23 +8,28 @@ import lombok.NonNull;
 
 import java.util.UUID;
 
-public class SaleTypeDTO {
+public class SaleTypeDTO
+{
 
     @Data
     @AllArgsConstructor
     @Builder
-    public static class Request {
-        @NonNull @NotBlank
+    public static class SaleTypeRequest
+    {
+        @NonNull
+        @NotBlank
         private String name;
 
-        @NonNull @NotBlank
+        @NonNull
+        @NotBlank
         private String unitLabel;
     }
 
     @Data
     @AllArgsConstructor
     @Builder
-    public static class Response {
+    public static class SaleTypeResponse
+    {
         private UUID id;
         private String name;
         private String unitLabel;

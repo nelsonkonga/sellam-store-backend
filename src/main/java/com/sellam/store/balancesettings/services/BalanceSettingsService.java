@@ -6,6 +6,7 @@ import com.sellam.store.balancesettings.repositories.BalanceSettingsRepository;
 import com.sellam.store.common.exception.ResourceNotFoundException;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@AllArgsConstructor
 public class BalanceSettingsService
 {
 
@@ -21,16 +23,6 @@ public class BalanceSettingsService
 
     private final ShopRepository shopRepository;
 
-
-    public BalanceSettingsService
-            (BalanceSettingsRepository balanceSettingsRepository,
-             ShopRepository shopRepository
-            )
-    {
-        this.balanceSettingsRepository = balanceSettingsRepository;
-
-        this.shopRepository = shopRepository;
-    }
 
     @Transactional
     public BalanceSettingsDTO.SettingsResponse saveSetting
@@ -51,6 +43,9 @@ public class BalanceSettingsService
         setting.setDayOfWeek(request.getDayOfWeek());
         setting.setBalanceTime(request.getBalanceTime());
         setting.setReminderFrequencyHours(request.getReminderFrequencyHours());
+        setting.setEnabled(request.isEnabled());
+        setting.setOpeningTime(request.getOpeningTime());
+        setting.setClosingTime(request.getClosingTime());
 
         BalanceSettingsEntity saved = balanceSettingsRepository.save(setting);
 
@@ -73,6 +68,9 @@ public class BalanceSettingsService
                 .dayOfWeek(setting.getDayOfWeek())
                 .balanceTime(setting.getBalanceTime())
                 .reminderFrequencyHours(setting.getReminderFrequencyHours())
+                .enabled(setting.isEnabled())
+                .openingTime(setting.getOpeningTime())
+                .closingTime(setting.getClosingTime())
                 .build();
     }
 }

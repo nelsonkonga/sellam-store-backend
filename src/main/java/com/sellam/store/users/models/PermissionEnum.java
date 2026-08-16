@@ -1,0 +1,16 @@
+package com.sellam.store.users.models;
+
+public enum PermissionEnum
+{
+    VIEW_PRODUCTS,
+    EDIT_PRODUCTS,
+    CREATE_INVOICE,
+    EDIT_INVOICE,
+    DELETE_INVOICE_LINE,
+    VALIDATE_INVOICE,
+    VIEW_SALES_HISTORY,
+    MANAGE_SHOP_SETTINGS,
+    VIEW_DAILY_BALANCE,
+    MANAGE_DAILY_BALANCE,
+    MANAGE_SALE_TYPES
+}

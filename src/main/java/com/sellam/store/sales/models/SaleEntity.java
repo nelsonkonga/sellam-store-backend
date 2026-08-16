@@ -62,9 +62,11 @@ public class SaleEntity
 
     @Enumerated(EnumType.STRING)
     private DiscountTypeEnum discountType;
+
     private BigDecimal discountValue;
 
     private BigDecimal lineSubtotal;
+
     private BigDecimal discountAmount;
 
 }
