@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("Illegal argument error: {}", ex.getMessage());
+        log.warn("Illegal argument error: {}", ex.getMessage(), ex);
         
         ErrorResponse response = ErrorResponse.builder()
                 .message(ex.getMessage())
@@ -41,7 +41,10 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .build();
         
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

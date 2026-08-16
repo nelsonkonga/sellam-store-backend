@@ -9,6 +9,7 @@ import com.sellam.store.auth.dto.AuthDTO;
 import com.sellam.store.common.email.services.EmailService;
 import com.sellam.store.common.exception.ResourceNotFoundException;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class AuthService
@@ -205,21 +207,38 @@ public class AuthService
     public AuthDTO.AuthResponse login(AuthDTO.LoginRequest request)
     {
         String identifier = request.getIdentifier() == null ? "" : request.getIdentifier().trim();
-        if (identifier.isBlank())
+        String password = request.getPassword() == null ? "" : request.getPassword();
+        
+        log.debug("Login attempt with identifier: {} (type: {})", 
+                identifier.isEmpty() ? "EMPTY" : (identifier.contains("@") ? "EMAIL" : "PHONE"), identifier);
+        
+        if (identifier.isBlank() || password.isBlank())
         {
-            throw new IllegalArgumentException("Identifiant requis");
+            log.warn("Login failed: missing identifier or password");
+            throw new IllegalArgumentException("L'identifiant et le mot de passe sont requis");
         }
 
+        // Try Account login
         Optional<AccountEntity> optAccount = identifier.contains("@")
                 ? accountRepository.findByEmail(identifier)
                 : findAccountByPhoneNumber(identifier);
 
         if (optAccount.isPresent()) {
             AccountEntity account = optAccount.get();
-            if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash()))
-            {
+            
+            // Check if password hash exists
+            if (account.getPasswordHash() == null || account.getPasswordHash().isBlank()) {
+                log.warn("Login failed for account {}: no password hash set", account.getId());
                 throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
             }
+            
+            if (!passwordEncoder.matches(password, account.getPasswordHash()))
+            {
+                log.warn("Login failed for account {}: password mismatch", account.getId());
+                throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
+            }
+            
+            log.info("Account login successful: {}", account.getId());
             String token = jwtProvider.generateToken(account.getId(), "ACCOUNT", null, account.getPhoneNumber());
             return AuthDTO.AuthResponse.builder()
                     .token(token)
@@ -232,6 +251,7 @@ public class AuthService
                     .build();
         }
 
+        // Try User/Employee login
         Optional<UserEntity> optUser = identifier.contains("@")
                 ? findUserByEmail(identifier)
                 : findUserByPhoneNumber(identifier);
@@ -239,14 +259,25 @@ public class AuthService
         if (optUser.isPresent())
         {
             UserEntity user = optUser.get();
-            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
+            
+            // Check if password hash exists
+            if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+                log.warn("Login failed for user {}: no password hash set", user.getId());
+                throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
+            }
+            
+            if (!passwordEncoder.matches(password, user.getPasswordHash()))
             {
+                log.warn("Login failed for user {}: password mismatch", user.getId());
                 throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
             }
             if (!user.isActive())
             {
+                log.warn("Login failed for user {}: account disabled", user.getId());
                 throw new IllegalArgumentException("Ce compte employé a été désactivé");
             }
+            
+            log.info("User login successful: {}", user.getId());
             String token = jwtProvider.generateToken(user.getId(), "USER", user.getShop().getId(), user.getPhoneNumber());
             return AuthDTO.AuthResponse.builder()
                     .token(token)
@@ -259,6 +290,7 @@ public class AuthService
                     .build();
         }
 
+        log.warn("Login failed: no account or user found with identifier: {}", identifier);
         throw new IllegalArgumentException("Identifiant ou mot de passe incorrect");
     }
 
