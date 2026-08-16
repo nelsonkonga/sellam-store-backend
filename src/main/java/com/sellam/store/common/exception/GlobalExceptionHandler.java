@@ -1,11 +1,16 @@
 package com.sellam.store.common.exception;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -14,35 +19,100 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler
 {
-
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class ErrorResponse {
+        private String message;
+        private String error;
+        private int status;
+        private LocalDateTime timestamp;
+        private Map<String, String> validationErrors;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex)
     {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+        logger.warn("Illegal argument error: {}", ex.getMessage(), ex);
+        
+        ErrorResponse response = ErrorResponse.builder()
+                .message(ex.getMessage())
+                .error("Invalid request")
+                .status(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(response);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex)
+    {
+        logger.warn("Validation error: {}", ex.getMessage());
+        
+        Map<String, String> validationErrors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+            validationErrors.put(error.getField(), error.getDefaultMessage())
+        );
+        
+        ErrorResponse response = ErrorResponse.builder()
+                .message("Validation failed")
+                .error("Invalid request body")
+                .status(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .validationErrors(validationErrors)
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException ex)
+    {
+        logger.warn("Response status exception: {}", ex.getMessage());
+        
+        ErrorResponse response = ErrorResponse.builder()
+                .message(ex.getReason())
+                .error(ex.getStatusCode().toString())
+                .status(ex.getStatusCode().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex)
+    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex)
     {
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        logger.warn("Resource not found: {}", ex.getMessage());
+        
+        ErrorResponse response = ErrorResponse.builder()
+                .message(ex.getMessage())
+                .error("Not found")
+                .status(HttpStatus.NOT_FOUND.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex)
+    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex)
     {
-        logger.error("Erreur inattendue", ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Une erreur inattendue est survenue");
-    }
-
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message)
-    {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-        return ResponseEntity.status(status).body(body);
+        logger.error("Unhandled exception", ex);
+        
+        ErrorResponse response = ErrorResponse.builder()
+                .message("Une erreur interne est survenue")
+                .error(ex.getClass().getSimpleName())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }
