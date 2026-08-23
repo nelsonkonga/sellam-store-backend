@@ -88,4 +88,13 @@ public class ProductsDTO
 
         UUID shopId;
     }
+
+    @Data
+    @AllArgsConstructor
+    @Builder
+    public static class ProductSalesResponse
+    {
+        ProductResponse product;
+        BigDecimal totalSold;
+    }
 }

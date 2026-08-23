@@ -50,6 +50,10 @@ public class InvoiceEntity
     private InvoiceStatusEnum status;
 
     private String validatedByName;
+    
+    private String paymentMethod; // e.g. CASH, MOBILE_MONEY, CARD
+    
+    private String soldBy; // ID or Name of the employee/user who made the sale
 
     @CreatedDate
     @Column(updatable = false)

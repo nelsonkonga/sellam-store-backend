@@ -128,6 +128,26 @@ public class ProductsService
         productsRepository.save(product);
     }
 
+    public List<ProductsDTO.ProductSalesResponse> listTopSellingProducts(UUID shopId) {
+        return productsRepository.findTopSellingProductsByShopId(shopId)
+                .stream()
+                .map(row -> {
+                    ProductEntity p = (ProductEntity) row[0];
+                    java.math.BigDecimal totalSold = (java.math.BigDecimal) row[1];
+                    return ProductsDTO.ProductSalesResponse.builder()
+                            .product(toPostOutput(p))
+                            .totalSold(totalSold)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    public ProductsDTO.ProductResponse getProductByBarcode(UUID shopId, String barcode) {
+        ProductEntity product = productsRepository.findByShop_IdAndBarcode(shopId, barcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable pour ce code-barres"));
+        return toPostOutput(product);
+    }
+
 
     public ProductsDTO.ProductResponse toPostOutput(ProductEntity newProduct)
     {

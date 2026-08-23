@@ -65,4 +65,20 @@ public class ProductsRestController
         productsService.updateProductPictureUrl(id, pictureUrl);
         return Map.of("pictureUrl", pictureUrl);
     }
+
+    @PreAuthorize("@sec.can(authentication, 'VIEW_PRODUCTS')")
+    @GetMapping("/top-selling")
+    @ResponseStatus(HttpStatus.OK)
+    public List<ProductsDTO.ProductSalesResponse> listTopSellingProducts(@RequestParam UUID shopId)
+    {
+        return productsService.listTopSellingProducts(shopId);
+    }
+
+    @PreAuthorize("@sec.can(authentication, 'VIEW_PRODUCTS')")
+    @GetMapping("/barcode/{barcode}")
+    @ResponseStatus(HttpStatus.OK)
+    public ProductsDTO.ProductResponse getProductByBarcode(@PathVariable String barcode, @RequestParam UUID shopId)
+    {
+        return productsService.getProductByBarcode(shopId, barcode);
+    }
 }

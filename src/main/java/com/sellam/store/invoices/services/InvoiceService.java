@@ -180,11 +180,11 @@ public class InvoiceService
     @Transactional
     public InvoiceDTO.InvoiceResponse validateInvoice(UUID invoiceId)
     {
-        return validateInvoice(invoiceId, null);
+        return validateInvoice(invoiceId, null, null);
     }
 
     @Transactional
-    public InvoiceDTO.InvoiceResponse validateInvoice(UUID invoiceId, AuthPrincipal principal)
+    public InvoiceDTO.InvoiceResponse validateInvoice(UUID invoiceId, InvoiceDTO.ValidateInvoiceRequest request, AuthPrincipal principal)
     {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable"));
@@ -195,10 +195,26 @@ public class InvoiceService
             throw new IllegalArgumentException("Impossible de valider une facture vide");
         }
 
+        if (request != null && request.getCustomerName() != null) {
+            String trimmedName = request.getCustomerName().trim();
+            invoice.setCustomerName(trimmedName.isEmpty() ? null : trimmedName);
+        }
+
+        if (request != null && request.getPaymentMethod() != null) {
+            invoice.setPaymentMethod(request.getPaymentMethod());
+        } else {
+            invoice.setPaymentMethod("CASH"); // Default
+        }
+
         String validatorName = resolveValidatorName(principal);
 
         invoice.setStatus(InvoiceStatusEnum.VALIDATED);
         invoice.setValidatedByName(validatorName);
+        
+        if (principal != null) {
+            invoice.setSoldBy(principal.getId().toString());
+        }
+        
         InvoiceEntity saved = invoiceRepository.save(invoice);
         return toResponse(saved, lines);
     }
@@ -210,6 +226,9 @@ public class InvoiceService
      */
     private String resolveValidatorName(AuthPrincipal principal)
     {
+        if (principal == null) {
+            return "Sync";
+        }
         if ("ACCOUNT".equals(principal.getUserType()))
         {
             return accountRepository.findById(principal.getId())
@@ -299,6 +318,8 @@ public class InvoiceService
                 .status(invoice.getStatus() != null ? invoice.getStatus().name() : null)
                 .createdAt(invoice.getCreatedAt())
                 .validatedByName(invoice.getValidatedByName())
+                .paymentMethod(invoice.getPaymentMethod())
+                .soldBy(invoice.getSoldBy())
                 .build();
     }
 

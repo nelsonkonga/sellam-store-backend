@@ -64,10 +64,12 @@ public class InvoiceRestController
     @PreAuthorize("@sec.can(authentication, 'VALIDATE_INVOICE')")
     @PostMapping("/{id}/validate")
     @ResponseStatus(HttpStatus.OK)
-    public InvoiceDTO.InvoiceResponse validate(@PathVariable UUID id, Authentication authentication)
+    public InvoiceDTO.InvoiceResponse validate(@PathVariable UUID id,
+                                               @RequestBody(required = false) InvoiceDTO.ValidateInvoiceRequest request,
+                                               Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
-        return invoiceService.validateInvoice(id, principal);
+        return invoiceService.validateInvoice(id, request, principal);
     }
 
     // Pas de restriction de permission métier : consulter/imprimer une facture déjà

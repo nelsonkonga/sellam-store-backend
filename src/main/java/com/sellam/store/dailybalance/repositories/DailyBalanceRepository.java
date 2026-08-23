@@ -13,4 +13,6 @@ public interface DailyBalanceRepository extends JpaRepository<DailyBalanceEntity
     Optional<DailyBalanceEntity> findByShop_IdAndBalanceDate(UUID shopId, LocalDate balanceDate);
 
     List<DailyBalanceEntity> findByShop_IdOrderByBalanceDateDesc(UUID shopId);
+
+    List<DailyBalanceEntity> findByShop_IdAndBalanceDateBetweenOrderByBalanceDateAsc(UUID shopId, LocalDate start, LocalDate end);
 }

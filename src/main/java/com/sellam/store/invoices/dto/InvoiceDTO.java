@@ -61,6 +61,16 @@ public class InvoiceDTO
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
+    public static class ValidateInvoiceRequest
+    {
+        private String customerName;
+        private String paymentMethod;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
     public static class InvoiceResponse
     {
         private UUID id;
@@ -72,6 +82,8 @@ public class InvoiceDTO
         private BigDecimal totalAmount;
         private String status;
         private String validatedByName;
+        private String paymentMethod;
+        private String soldBy;
         private LocalDateTime createdAt;
     }
 }
