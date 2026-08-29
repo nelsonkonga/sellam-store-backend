@@ -27,6 +27,18 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
+    @Value("${app.registration.enabled}")
+    private boolean registrationEnabled;
+
+    // Setters pour les tests
+    public void setFrontendUrl(String frontendUrl) {
+        this.frontendUrl = frontendUrl;
+    }
+
+    public void setRegistrationEnabled(boolean registrationEnabled) {
+        this.registrationEnabled = registrationEnabled;
+    }
+
     @Override
     public void onAuthenticationSuccess(@NonNull HttpServletRequest request,
                                         @NonNull HttpServletResponse response,
@@ -48,6 +60,12 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
 
         AccountEntity account = accountRepository.findByEmail(email)
                 .orElseGet(() -> {
+                    // BLOCAGE CANARY PHASE 1 : Création automatique de compte OAuth désactivée
+                    if (!registrationEnabled)
+                    {
+                        throw new RuntimeException("Les nouvelles inscriptions sont temporairement désactivées pour maintenance. Veuillez réessayer ultérieurement.");
+                    }
+
                     AccountEntity newAccount = AccountEntity.builder()
                             .name(name)
                             .email(email)
