@@ -137,6 +137,7 @@ public class ProductsService
                     return ProductsDTO.ProductSalesResponse.builder()
                             .product(toPostOutput(p))
                             .totalSold(totalSold)
+                            .unitLabel(p.getSaleType().getUnitLabel())
                             .build();
                 })
                 .collect(Collectors.toList());

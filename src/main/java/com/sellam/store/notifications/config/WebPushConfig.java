@@ -4,6 +4,7 @@ import nl.martijndwars.webpush.PushService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
@@ -11,6 +12,7 @@ import java.security.GeneralSecurityException;
 import java.security.Security;
 
 @Configuration
+@Profile("!test")
 public class WebPushConfig {
 
     static {
