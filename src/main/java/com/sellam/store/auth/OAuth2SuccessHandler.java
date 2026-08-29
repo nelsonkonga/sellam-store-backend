@@ -58,23 +58,28 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
         String name = oauthUser.getAttribute("name");
         String googleId = oauthUser.getAttribute("sub");
 
-        AccountEntity account = accountRepository.findByEmail(email)
-                .orElseGet(() -> {
-                    // BLOCAGE CANARY PHASE 1 : Création automatique de compte OAuth désactivée
-                    if (!registrationEnabled)
-                    {
-                        throw new RuntimeException("Les nouvelles inscriptions sont temporairement désactivées pour maintenance. Veuillez réessayer ultérieurement.");
-                    }
+        // Vérifier si le compte existe déjà
+        java.util.Optional<AccountEntity> existingAccount = accountRepository.findByEmail(email);
+        
+        if (existingAccount.isEmpty() && !registrationEnabled)
+        {
+            // BLOCAGE CANARY PHASE 1 : Rediriger vers le frontend avec message d'erreur
+            String errorUrl = frontendUrl + "/oauth-error?error=registration_disabled&message=" 
+                    + URLEncoder.encode("Les nouvelles inscriptions sont temporairement désactivées pour maintenance. Veuillez réessayer ultérieurement.", StandardCharsets.UTF_8);
+            response.sendRedirect(errorUrl);
+            return;
+        }
 
-                    AccountEntity newAccount = AccountEntity.builder()
-                            .name(name)
-                            .email(email)
-                            .emailVerified(true)
-                            .oauthProvider("google")
-                            .oauthId(googleId)
-                            .build();
-                    return accountRepository.save(newAccount);
-                });
+        AccountEntity account = existingAccount.orElseGet(() -> {
+            AccountEntity newAccount = AccountEntity.builder()
+                    .name(name)
+                    .email(email)
+                    .emailVerified(true)
+                    .oauthProvider("google")
+                    .oauthId(googleId)
+                    .build();
+            return accountRepository.save(newAccount);
+        });
 
         if (account.getOauthProvider() == null)
         {

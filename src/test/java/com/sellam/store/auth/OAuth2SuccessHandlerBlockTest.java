@@ -11,10 +11,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import java.io.IOException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.contains;
 
 /**
  * Test pour valider le blocage technique des inscriptions OAuth2 pendant la fenêtre canary.
@@ -42,7 +44,7 @@ class OAuth2SuccessHandlerBlockTest
     private OAuth2User oauthUser;
 
     @Test
-    void onAuthenticationSuccess_WhenRegistrationDisabled_ShouldBlockNewAccountCreation()
+    void onAuthenticationSuccess_WhenRegistrationDisabled_ShouldRedirectWithError() throws IOException
     {
         // Given - Handler avec registration désactivée
         OAuth2SuccessHandler handler = new OAuth2SuccessHandler(accountRepository, jwtProvider);
@@ -55,11 +57,11 @@ class OAuth2SuccessHandlerBlockTest
         when(accountRepository.findByEmail("newuser@example.com")).thenReturn(Optional.empty());
 
         // When - Tentative de connexion OAuth avec nouvel email
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-            handler.onAuthenticationSuccess(request, response, authentication);
-        });
+        handler.onAuthenticationSuccess(request, response, authentication);
 
-        // Then - Vérifier le message d'erreur
-        assertTrue(exception.getMessage().contains("Les nouvelles inscriptions sont temporairement désactivées"));
+        // Then - Vérifier que la redirection vers la page d'erreur a été faite
+        verify(response).sendRedirect(anyString());
+        // Vérifier que sendRedirect a été appelé exactement une fois
+        verify(response, times(1)).sendRedirect(anyString());
     }
 }
