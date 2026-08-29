@@ -244,7 +244,7 @@ class IdentityServiceTest
         when(shopMembershipRepository.findActiveMembership(personId, shopId))
                 .thenReturn(Optional.empty());
         when(shopMembershipRepository.save(any(ShopMembershipEntity.class)))
-                .thenReturn(membership);
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
         ShopMembershipEntity result = identityService.createMembership(personId, shopId, RoleEnum.CASHIER);
@@ -253,7 +253,7 @@ class IdentityServiceTest
         assertNotNull(result);
         assertEquals(person, result.getPerson());
         assertEquals(shop, result.getShop());
-        assertEquals(RoleEnum.CASHIER, result.getRole());
+        assertEquals(RoleEnum.CASHIER, result.getRole()); // Vérifie que le rôle passé en paramètre est bien utilisé
         assertTrue(result.isActive());
         verify(shopMembershipRepository).save(any(ShopMembershipEntity.class));
     }
