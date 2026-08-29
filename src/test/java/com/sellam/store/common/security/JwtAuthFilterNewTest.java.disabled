@@ -1,0 +1,327 @@
+package com.sellam.store.common.security;
+
+import com.sellam.store.auth.JwtProviderNew;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.models.ShopMembershipEntity;
+import com.sellam.store.identity.models.SystemRoleEnum;
+import com.sellam.store.identity.repositories.PersonRepository;
+import com.sellam.store.identity.repositories.ShopMembershipRepository;
+import com.sellam.store.users.models.PermissionEnum;
+import com.sellam.store.users.models.RoleEnum;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.io.IOException;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class JwtAuthFilterNewTest
+{
+
+    @Mock
+    private JwtProviderNew jwtProvider;
+
+    @Mock
+    private PersonRepository personRepository;
+
+    @Mock
+    private ShopMembershipRepository shopMembershipRepository;
+
+    @Mock
+    private HttpServletRequest request;
+
+    @Mock
+    private HttpServletResponse response;
+
+    @Mock
+    private FilterChain filterChain;
+
+    @InjectMocks
+    private JwtAuthFilterNew jwtAuthFilter;
+
+    private UUID personId;
+    private UUID shopId;
+    private String validToken;
+    private AuthPrincipal principal;
+
+    @BeforeEach
+    void setUp()
+    {
+        personId = UUID.randomUUID();
+        shopId = UUID.randomUUID();
+        validToken = "valid.jwt.token";
+
+        principal = AuthPrincipal.builder()
+                .id(personId)
+                .userType("PERSON")
+                .shopId(shopId)
+                .phoneNumber("+33612345678")
+                .build();
+    }
+
+    @Test
+    void doFilterInternal_WithNoAuthHeader_ShouldSkipAuthentication() throws ServletException, IOException
+    {
+        // Given
+        when(request.getHeader("Authorization")).thenReturn(null);
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        verify(jwtProvider, never()).validateToken(any());
+    }
+
+    @Test
+    void doFilterInternal_WithInvalidToken_ShouldSkipAuthentication() throws ServletException, IOException
+    {
+        // Given
+        when(request.getHeader("Authorization")).thenReturn("Bearer invalid.token");
+        when(jwtProvider.validateToken("invalid.token")).thenReturn(false);
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        verify(jwtProvider, never()).getPrincipalFromToken(any());
+    }
+
+    @Test
+    void doFilterInternal_WithValidToken_AccountType_ShouldGrantAllPermissions() throws ServletException, IOException
+    {
+        // Given
+        principal.setUserType("ACCOUNT");
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+        assertTrue(auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("PERM_ALL")));
+    }
+
+    @Test
+    void doFilterInternal_WithValidToken_PlatformAdminWithoutShopId_ShouldStillGrantAllPermissions() throws ServletException, IOException
+    {
+        // Given
+        principal.setShopId(null); // Même sans shopId
+        PersonEntity adminPerson = PersonEntity.builder()
+                .id(personId)
+                .systemRole(SystemRoleEnum.PLATFORM_ADMIN)
+                .build();
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+        when(personRepository.findById(personId)).thenReturn(Optional.of(adminPerson));
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+
+        // PLATFORM_ADMIN doit avoir PERM_ALL même sans shopId
+        assertTrue(auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("PERM_ALL")));
+        assertFalse(auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("NEUTRAL_ACCESS")));
+    }
+    {
+        // Given
+        PersonEntity adminPerson = PersonEntity.builder()
+                .id(personId)
+                .systemRole(SystemRoleEnum.PLATFORM_ADMIN)
+                .build();
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+        when(personRepository.findById(personId)).thenReturn(Optional.of(adminPerson));
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+        assertTrue(auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("PERM_ALL")));
+    }
+
+    @Test
+    void doFilterInternal_WithValidToken_PersonWithActiveMembership_ShouldGrantScopedPermissions() throws ServletException, IOException
+    {
+        // Given
+        PersonEntity regularPerson = PersonEntity.builder()
+                .id(personId)
+                .systemRole(null)
+                .build();
+
+        ShopMembershipEntity membership = ShopMembershipEntity.builder()
+                .id(UUID.randomUUID())
+                .role(RoleEnum.CASHIER)
+                .active(true)
+                .build();
+
+        // CASHIER a des permissions spécifiques
+        Set<PermissionEnum> cashierPermissions = Set.of(
+                PermissionEnum.VIEW_PRODUCTS,
+                PermissionEnum.CREATE_INVOICE,
+                PermissionEnum.DELETE_INVOICE_LINE,
+                PermissionEnum.VALIDATE_INVOICE,
+                PermissionEnum.VIEW_DAILY_BALANCE
+        );
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+        when(personRepository.findById(personId)).thenReturn(Optional.of(regularPerson));
+        when(shopMembershipRepository.findActiveMembership(personId, shopId))
+                .thenReturn(Optional.of(membership));
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+
+        // Vérifier que les permissions sont celles de CASHIER
+        Set<String> grantedPermissions = auth.getAuthorities().stream()
+                .map(Object::toString)
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertTrue(grantedPermissions.contains("VIEW_PRODUCTS"));
+        assertTrue(grantedPermissions.contains("CREATE_INVOICE"));
+        assertFalse(grantedPermissions.contains("PERM_ALL"));
+    }
+
+    @Test
+    void doFilterInternal_WithValidToken_PersonWithoutShopId_ShouldGrantNeutralAccess() throws ServletException, IOException
+    {
+        // Given
+        principal.setShopId(null); // Pas de boutique active
+
+        PersonEntity regularPerson = PersonEntity.builder()
+                .id(personId)
+                .systemRole(null)
+                .build();
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+        when(personRepository.findById(personId)).thenReturn(Optional.of(regularPerson));
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+
+        // Doit avoir NEUTRAL_ACCESS (accès aux endpoints non scopés uniquement)
+        Set<String> authorities = auth.getAuthorities().stream()
+                .map(Object::toString)
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertEquals(1, authorities.size());
+        assertTrue(authorities.contains("NEUTRAL_ACCESS"));
+        assertFalse(authorities.contains("PERM_ALL"));
+    }
+
+    @Test
+    void doFilterInternal_WithValidToken_PersonWithInactiveMembership_ShouldGrantNoPermissions() throws ServletException, IOException
+    {
+        // Given
+        PersonEntity regularPerson = PersonEntity.builder()
+                .id(personId)
+                .systemRole(null)
+                .build();
+
+        ShopMembershipEntity inactiveMembership = ShopMembershipEntity.builder()
+                .id(UUID.randomUUID())
+                .role(RoleEnum.MANAGER)
+                .active(false) // Inactive
+                .build();
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+        when(personRepository.findById(personId)).thenReturn(Optional.of(regularPerson));
+        when(shopMembershipRepository.findActiveMembership(personId, shopId))
+                .thenReturn(Optional.empty()); // Pas de membership active
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+        assertTrue(auth.getAuthorities().isEmpty()); // Pas de permissions pour membership inactive
+    }
+
+    @Test
+    void doFilterInternal_WithValidToken_PersonNotFound_ShouldGrantNoPermissions() throws ServletException, IOException
+    {
+        // Given
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenReturn(true);
+        when(jwtProvider.getPrincipalFromToken(validToken)).thenReturn(principal);
+        when(personRepository.findById(personId)).thenReturn(Optional.empty());
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+        assertTrue(auth.getAuthorities().isEmpty());
+    }
+
+    @Test
+    void doFilterInternal_WithTokenException_ShouldClearContextAndContinue() throws ServletException, IOException
+    {
+        // Given
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + validToken);
+        when(jwtProvider.validateToken(validToken)).thenThrow(new RuntimeException("Token parsing error"));
+
+        // When
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(filterChain).doFilter(request, response);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+}
