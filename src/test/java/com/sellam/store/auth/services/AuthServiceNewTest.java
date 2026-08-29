@@ -72,7 +72,8 @@ class AuthServiceNewTest
                 legacyIdMappingRepository,
                 emailService,
                 passwordEncoder,
-                jwtProvider
+                jwtProvider,
+                true // registration enabled for tests
         );
 
         personId = UUID.randomUUID();

@@ -14,6 +14,7 @@ import com.sellam.store.shops.repositories.ShopRepository;
 import com.sellam.store.users.models.RoleEnum;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,9 @@ public class AuthServiceNew
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtProviderNew jwtProvider;
+
+    @Value("${app.registration.enabled}")
+    private boolean registrationEnabled;
 
     private List<String> buildPhoneLookupCandidates(String phoneNumber)
     {
@@ -115,6 +119,12 @@ public class AuthServiceNew
     @Transactional
     public AuthDTO.AuthResponse register(AuthDTO.RegisterRequest request)
     {
+        // BLOCAGE CANARY PHASE 1 : Nouvelles inscriptions désactivées
+        if (!registrationEnabled)
+        {
+            throw new IllegalStateException("Les nouvelles inscriptions sont temporairement désactivées pour maintenance. Veuillez réessayer ultérieurement.");
+        }
+
         // Validation : au moins phone ou email requis
         if ((request.getPhoneNumber() == null || request.getPhoneNumber().isBlank())
                 && (request.getEmail() == null || request.getEmail().isBlank()))
