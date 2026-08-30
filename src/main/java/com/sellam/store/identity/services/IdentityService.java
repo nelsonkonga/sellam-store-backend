@@ -12,6 +12,7 @@ import com.sellam.store.users.models.RoleEnum;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.annotation.Profile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.UUID;
  */
 @Service
 @AllArgsConstructor
+@Profile("phase1")
 public class IdentityService
 {
 

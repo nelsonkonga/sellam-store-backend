@@ -7,6 +7,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,7 @@ import java.util.UUID;
  * - Le token ne contient plus de shopId fixe pour supporter le multi-boutique
  */
 @Component
+@Profile("phase1")
 public class JwtProviderNew
 {
     @Value("${jwt.secret}")

@@ -8,6 +8,7 @@ import com.sellam.store.common.security.AuthPrincipal;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.annotation.Profile;
 
 /**
  * Service de profil adapté au nouveau modèle PersonEntity.
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
  * - Compatible avec le frontend via AuthPrincipal
  */
 @Service
+@Profile("phase1")
 @AllArgsConstructor
 public class ProfileServiceNew
 {

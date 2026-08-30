@@ -17,6 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
  * - Maintient la compatibilité avec "ACCOUNT" (PERM_ALL) et "USER" (permissions)
  */
 @Component
+@Profile("phase1")
 @Slf4j
 public class JwtAuthFilterNew extends OncePerRequestFilter
 {

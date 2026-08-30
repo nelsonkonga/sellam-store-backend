@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.context.annotation.Profile;
 
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
  * - PERSON/USER avec memberships : membership active pour shop_id
  */
 @Component
+@Profile("phase1")
 public class ShopAccessGuardNew
 {
     private final ShopRepository shopRepository;
