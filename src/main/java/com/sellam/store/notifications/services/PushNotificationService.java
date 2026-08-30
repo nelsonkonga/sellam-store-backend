@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutionException;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Profile("!dev")
+@Profile("!dev & !postgres")
 public class PushNotificationService {
 
     private final PushSubscriptionRepository pushSubscriptionRepository;

@@ -28,7 +28,7 @@ import java.util.List;
 @Slf4j
 @Service
 @AllArgsConstructor
-@Profile("!dev")
+@Profile("!dev & !postgres")
 public class BalanceNotificationScheduler {
 
     private final BalanceSettingsRepository balanceSettingsRepository;
