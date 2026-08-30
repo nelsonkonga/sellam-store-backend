@@ -1,7 +1,8 @@
 package com.sellam.store.common.config;
 
+import com.sellam.store.auth.OAuth2SuccessHandlerNew;
 import com.sellam.store.common.security.JwtAuthFilterNew;
-import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -24,12 +25,21 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@AllArgsConstructor
 @EnableMethodSecurity
 @Profile("phase1")
 public class SecurityConfigNew
 {
     private final JwtAuthFilterNew jwtAuthFilterNew;
+    private final OAuth2SuccessHandlerNew oAuth2SuccessHandlerNew;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+    public SecurityConfigNew(JwtAuthFilterNew jwtAuthFilterNew, OAuth2SuccessHandlerNew oAuth2SuccessHandlerNew)
+    {
+        this.jwtAuthFilterNew = jwtAuthFilterNew;
+        this.oAuth2SuccessHandlerNew = oAuth2SuccessHandlerNew;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception
@@ -47,6 +57,9 @@ public class SecurityConfigNew
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2SuccessHandlerNew)
+                        .failureHandler(((request, response, exception) -> response.sendRedirect(frontendUrl + "/login?error=oauth_failed"))))
                 .addFilterBefore(jwtAuthFilterNew, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
