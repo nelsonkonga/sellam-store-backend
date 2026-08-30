@@ -1,7 +1,7 @@
 package com.sellam.store.invoices.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.invoices.dto.InvoiceDTO;
 import com.sellam.store.invoices.services.InvoiceService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,7 +23,7 @@ public class InvoiceRestController
 {
 
     private final InvoiceService invoiceService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     @PreAuthorize("@sec.can(authentication, 'CREATE_INVOICE')")
     @PostMapping

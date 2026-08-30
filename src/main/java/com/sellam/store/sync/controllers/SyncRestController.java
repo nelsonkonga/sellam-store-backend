@@ -1,7 +1,7 @@
 package com.sellam.store.sync.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.sync.dto.SyncDTO;
 import com.sellam.store.sync.services.SyncService;
 import org.springframework.http.HttpStatus;
@@ -24,9 +24,9 @@ public class SyncRestController
 {
 
     private final SyncService syncService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
-    public SyncRestController(SyncService syncService, ShopAccessGuard shopAccessGuard)
+    public SyncRestController(SyncService syncService, IShopAccessGuard shopAccessGuard)
     {
         this.syncService = syncService;
         this.shopAccessGuard = shopAccessGuard;

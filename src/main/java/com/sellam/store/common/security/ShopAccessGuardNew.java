@@ -24,7 +24,7 @@ import java.util.UUID;
  */
 @Component
 @Profile("phase1")
-public class ShopAccessGuardNew
+public class ShopAccessGuardNew implements IShopAccessGuard
 {
     private final ShopRepository shopRepository;
     private final ShopMembershipRepository shopMembershipRepository;

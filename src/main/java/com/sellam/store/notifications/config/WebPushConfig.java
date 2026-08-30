@@ -12,7 +12,7 @@ import java.security.GeneralSecurityException;
 import java.security.Security;
 
 @Configuration
-@Profile("!test")
+@Profile("!test & !dev")
 public class WebPushConfig {
 
     static {

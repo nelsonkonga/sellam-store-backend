@@ -1,6 +1,6 @@
 package com.sellam.store.dailybalance.controllers;
 
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.dailybalance.dto.DailyBalanceDTO;
 import com.sellam.store.dailybalance.services.DailyBalanceService;
 import org.springframework.http.HttpStatus;
@@ -17,9 +17,9 @@ public class DailyBalanceRestController
 {
 
     private final DailyBalanceService dailyBalanceService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
-    public DailyBalanceRestController(DailyBalanceService dailyBalanceService, ShopAccessGuard shopAccessGuard)
+    public DailyBalanceRestController(DailyBalanceService dailyBalanceService, IShopAccessGuard shopAccessGuard)
     {
         this.dailyBalanceService = dailyBalanceService;
         this.shopAccessGuard = shopAccessGuard;

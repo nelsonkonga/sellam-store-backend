@@ -1,7 +1,7 @@
 package com.sellam.store.users.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.shops.repositories.ShopRepository;
 import com.sellam.store.users.dto.UserDTO;
 import com.sellam.store.users.services.UserService;
@@ -37,7 +37,7 @@ public class UserRestController
 
     private final UserService userService;
     private final ShopRepository shopRepository;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     @PreAuthorize("@sec.isAccountOwner(authentication)")
     @PostMapping("/shop/{shopId}")

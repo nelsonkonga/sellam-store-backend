@@ -1,7 +1,7 @@
 package com.sellam.store.identity.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.identity.dto.IdentityDTO;
 import com.sellam.store.identity.models.ShopMembershipEntity;
 import com.sellam.store.identity.repositories.ShopMembershipRepository;
@@ -39,7 +39,7 @@ public class IdentityController
 {
 
     private final IdentityService identityService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
     private final ShopMembershipRepository shopMembershipRepository;
 
     /**

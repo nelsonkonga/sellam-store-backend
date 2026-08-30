@@ -2,7 +2,7 @@ package com.sellam.store.balancesettings.controllers;
 
 import com.sellam.store.balancesettings.dto.BalanceSettingsDTO;
 import com.sellam.store.balancesettings.services.BalanceSettingsService;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,7 +19,7 @@ public class BalanceSettingsRestController
 {
 
     private final BalanceSettingsService balanceSettingsService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     @PreAuthorize("@sec.can(authentication, 'MANAGE_DAILY_BALANCE')")
     @PostMapping

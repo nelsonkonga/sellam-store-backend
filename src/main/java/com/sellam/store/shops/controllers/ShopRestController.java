@@ -1,7 +1,7 @@
 package com.sellam.store.shops.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.shops.dto.ShopDTO;
 import com.sellam.store.shops.services.ShopService;
 import com.sellam.store.shops.services.SupabaseStorageService;
@@ -30,7 +30,7 @@ public class ShopRestController
 {
 
     private final ShopService shopService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
     private final SupabaseStorageService supabaseStorageService;
 
     @PreAuthorize("@sec.isAccountOwner(authentication)")

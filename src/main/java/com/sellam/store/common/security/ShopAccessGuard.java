@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.context.annotation.Profile;
 
 import java.util.UUID;
 
@@ -18,7 +19,8 @@ import java.util.UUID;
  * - USER : la boutique doit être SA boutique (principal.getShopId()).
  */
 @Component
-public class ShopAccessGuard
+@Profile("!phase1")
+public class ShopAccessGuard implements IShopAccessGuard
 {
     private final com.sellam.store.shops.repositories.ShopRepository shopRepository;
 

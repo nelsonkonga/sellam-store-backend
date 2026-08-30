@@ -9,11 +9,13 @@ import org.springframework.security.core.Authentication;
 import com.sellam.store.common.security.AuthPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.context.annotation.Profile;
 
 
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/auth")
+@Profile("!phase1")
 public class AuthRestController
 {
 

@@ -11,6 +11,7 @@ import com.sellam.store.common.security.AuthPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.context.annotation.Profile;
 
 import java.util.Map;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import java.util.UUID;
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/profile")
+@Profile("!phase1")
 public class ProfileRestController
 {
 

@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ import java.util.List;
 @Slf4j
 @Service
 @AllArgsConstructor
+@Profile("!dev")
 public class BalanceNotificationScheduler {
 
     private final BalanceSettingsRepository balanceSettingsRepository;

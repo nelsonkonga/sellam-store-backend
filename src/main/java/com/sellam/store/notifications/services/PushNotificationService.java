@@ -8,6 +8,7 @@ import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import org.jose4j.lang.JoseException;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Profile("!dev")
 public class PushNotificationService {
 
     private final PushSubscriptionRepository pushSubscriptionRepository;

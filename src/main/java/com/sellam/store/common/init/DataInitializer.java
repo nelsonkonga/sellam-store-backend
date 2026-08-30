@@ -36,7 +36,7 @@ import java.util.Random;
 
 @Slf4j
 @Component
-@Profile("!prod & !test")
+@Profile("!prod & !test & !phase1")
 public class DataInitializer implements CommandLineRunner {
 
     private final AccountRepository accountRepository;

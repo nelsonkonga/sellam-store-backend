@@ -1,10 +1,10 @@
 package com.sellam.store.common.config;
 
-import com.sellam.store.auth.OAuth2SuccessHandler;
-import com.sellam.store.common.security.JwtAuthFilter;
+import com.sellam.store.common.security.JwtAuthFilterNew;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -19,21 +19,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.context.annotation.Profile;
 
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 @AllArgsConstructor
-@EnableMethodSecurity // nécessaire pour que @PreAuthorize soit pris en compte
-@Profile("!phase1")
-public class SecurityConfig
+@EnableMethodSecurity
+@Profile("phase1")
+public class SecurityConfigNew
 {
-    private final JwtAuthFilter jwtAuthFilter;
-
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
-
+    private final JwtAuthFilterNew jwtAuthFilterNew;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception
@@ -42,6 +38,7 @@ public class SecurityConfig
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/identity/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/auth/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/notifications/push/**").permitAll()
@@ -50,14 +47,10 @@ public class SecurityConfig
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2SuccessHandler)
-                        .failureHandler(((request, response, exception) -> response.sendRedirect("http://localhost:5173/login?error=oauth_failed"))))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilterNew, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder()
@@ -65,13 +58,11 @@ public class SecurityConfig
         return new BCryptPasswordEncoder();
     }
 
-
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception
     {
         return config.getAuthenticationManager();
     }
-
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource()
