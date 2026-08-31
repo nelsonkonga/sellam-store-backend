@@ -13,6 +13,7 @@ public interface SalesRepository extends JpaRepository<SaleEntity, UUID>
     List<SaleEntity> findByShop_IdAndSoldAtBetweenOrderBySoldAtDesc(UUID shopId, LocalDateTime start, LocalDateTime end);
     List<SaleEntity> findTop5ByShop_IdOrderBySoldAtDesc(UUID shopId);
     List<SaleEntity> findByInvoice_Id(UUID invoiceId);
+    SaleEntity findByInvoice_IdAndProduct_Id(UUID invoiceId, UUID productId);
 
     @org.springframework.data.jpa.repository.Query("SELECT s FROM SaleEntity s WHERE s.shop.id = :shopId AND s.margin < 0 AND s.status = 'CONFIRMED' AND s.soldAt BETWEEN :start AND :end ORDER BY s.soldAt DESC")
     List<SaleEntity> findNegativeMarginSales(

@@ -38,27 +38,57 @@ public class InvoiceRestController
     @PostMapping("/{id}/lines")
     @ResponseStatus(HttpStatus.OK)
     public InvoiceDTO.InvoiceResponse addLine(@PathVariable UUID id,
-                                              @RequestBody InvoiceDTO.AddLineRequest request)
+                                              @RequestBody InvoiceDTO.AddLineRequest request,
+                                              Authentication authentication)
     {
-        return invoiceService.addLine(id, request);
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.addLine(id, request, principal);
+    }
+
+    @PreAuthorize("@sec.can(authentication, 'EDIT_INVOICE')")
+    @PutMapping("/{id}/lines/{saleId}/quantity")
+    @ResponseStatus(HttpStatus.OK)
+    public InvoiceDTO.InvoiceResponse modifyLineQuantity(@PathVariable UUID id,
+                                                         @PathVariable UUID saleId,
+                                                         @RequestBody InvoiceDTO.ModifyQuantityRequest request,
+                                                         Authentication authentication)
+    {
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.modifyLineQuantity(id, saleId, request.getQuantity(), principal);
+    }
+
+    @PreAuthorize("@sec.can(authentication, 'APPLY_LINE_DISCOUNT')")
+    @PostMapping("/{id}/lines/{saleId}/discount")
+    @ResponseStatus(HttpStatus.OK)
+    public InvoiceDTO.InvoiceResponse applyLineDiscount(@PathVariable UUID id,
+                                                        @PathVariable UUID saleId,
+                                                        @RequestBody InvoiceDTO.ApplyLineDiscountRequest request,
+                                                        Authentication authentication)
+    {
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.applyLineDiscount(id, saleId, request, principal);
     }
 
     @PreAuthorize("@sec.can(authentication, 'DELETE_INVOICE_LINE')")
     @DeleteMapping("/{id}/lines/{saleId}")
     @ResponseStatus(HttpStatus.OK)
     public InvoiceDTO.InvoiceResponse removeLine(@PathVariable UUID id, @PathVariable UUID saleId,
-                                                 @RequestParam(defaultValue = "false") boolean isManagerAction)
+                                                 @RequestParam(defaultValue = "false") boolean isManagerAction,
+                                                 Authentication authentication)
     {
-        return invoiceService.removeLine(id, saleId, isManagerAction);
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.removeLine(id, saleId, isManagerAction, principal);
     }
 
-    @PreAuthorize("@sec.can(authentication, 'EDIT_INVOICE')")
+    @PreAuthorize("@sec.can(authentication, 'APPLY_GLOBAL_DISCOUNT')")
     @PostMapping("/{id}/discount")
     @ResponseStatus(HttpStatus.OK)
     public InvoiceDTO.InvoiceResponse applyDiscount(@PathVariable UUID id,
-                                                    @RequestBody InvoiceDTO.ApplyInvoiceDiscountRequest request)
+                                                    @RequestBody InvoiceDTO.ApplyInvoiceDiscountRequest request,
+                                                    Authentication authentication)
     {
-        return invoiceService.applyInvoiceDiscount(id, request);
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.applyInvoiceDiscount(id, request, principal);
     }
 
     @PreAuthorize("@sec.can(authentication, 'VALIDATE_INVOICE')")

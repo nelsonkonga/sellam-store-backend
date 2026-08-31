@@ -17,6 +17,8 @@ public class InvoiceDTO
     public static class CreateInvoiceRequest
     {
         private String customerName;
+        private String localCreatedAt; // Date réelle de création locale (ISO format)
+        private String soldBy; // ID de l'utilisateur qui a créé la facture
     }
 
     @Data
@@ -29,6 +31,25 @@ public class InvoiceDTO
         @NonNull private BigDecimal quantity;
         private String discountType;
         private BigDecimal discountValue;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class ModifyQuantityRequest
+    {
+        @NonNull private BigDecimal quantity;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class ApplyLineDiscountRequest
+    {
+        @NonNull private String discountType;
+        @NonNull private BigDecimal discountValue;
     }
 
     @Data

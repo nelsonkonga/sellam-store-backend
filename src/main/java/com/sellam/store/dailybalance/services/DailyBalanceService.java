@@ -126,4 +126,56 @@ public class DailyBalanceService
                 .createdAt(balance.getCreatedAt())
                 .build();
     }
+
+    /**
+     * Recalcul le DailyBalanceEntity pour une date spécifique (utilisé lors de la suppression de lignes)
+     * Recalcul les recettes basées sur les factures validées de cette date
+     */
+    @Transactional
+    public void recomputeDailyBalanceForDate(UUID shopId, LocalDate date)
+    {
+        ShopEntity shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("Boutique introuvable"));
+
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+
+        List<InvoiceEntity> dateInvoices = invoiceRepository.findByShop_IdAndStatusAndCreatedAtBetween(
+                shopId, InvoiceStatusEnum.VALIDATED, startOfDay, endOfDay);
+
+        BigDecimal computedTotalSales = dateInvoices.stream()
+                .map(InvoiceEntity::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal computedTotalMargin = dateInvoices.stream()
+                .map(InvoiceEntity::getTotalMargin)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        DailyBalanceEntity balance = dailyBalanceRepository
+                .findByShop_IdAndBalanceDate(shopId, date)
+                .orElse(new DailyBalanceEntity());
+
+        balance.setShop(shop);
+        balance.setBalanceDate(date);
+        balance.setComputedTotalSales(computedTotalSales);
+        balance.setComputedTotalMargin(computedTotalMargin);
+
+        // Si une déclaration de cash existe, recalculer la différence
+        if (balance.getDeclaredCash() != null) {
+            BigDecimal discrepancy = balance.getDeclaredCash().subtract(computedTotalSales);
+            balance.setDiscrepancy(discrepancy);
+
+            BalanceStatusEnum status;
+            if (discrepancy.compareTo(BigDecimal.ZERO) == 0) {
+                status = BalanceStatusEnum.OK;
+            } else if (discrepancy.compareTo(BigDecimal.ZERO) > 0) {
+                status = BalanceStatusEnum.POSITIVE_DISCREPANCY;
+            } else {
+                status = BalanceStatusEnum.NEGATIVE_DISCREPANCY;
+            }
+            balance.setStatus(status);
+        }
+
+        dailyBalanceRepository.save(balance);
+    }
 }

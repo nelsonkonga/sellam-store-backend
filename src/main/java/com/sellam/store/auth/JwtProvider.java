@@ -1,22 +1,30 @@
 package com.sellam.store.auth;
 
+import com.sellam.store.common.security.AuthPrincipal;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.UUID;
-import com.sellam.store.common.security.AuthPrincipal;
 
+/**
+ * Provider JWT adaptÃ© au nouveau modÃ¨le PersonEntity.
+ * 
+ * Changements par rapport Ã  l'ancien JwtProvider :
+ * - userType peut Ãªtre "PERSON" (nouveau modÃ¨le) ou "ACCOUNT"/"USER" (compatibilitÃ©)
+ * - shopId est nullable et dÃ©terminÃ© dynamiquement via ShopMembershipEntity
+ * - Le token ne contient plus de shopId fixe pour supporter le multi-boutique
+ */
 @Component
-@Profile("!phase1")
+
 public class JwtProvider
 {
     @Value("${jwt.secret}")
@@ -32,10 +40,20 @@ public class JwtProvider
     }
 
 
-    public String generateToken(UUID id, String userType, UUID shopId, String phoneNumber)
+    /**
+     * GÃ©nÃ¨re un token JWT pour une personne.
+     *
+     * @param id PersonEntity.id
+     * @param name Nom de la personne
+     * @param userType "PERSON" (nouveau) ou "ACCOUNT"/"USER" (compatibilitÃ©)
+     * @param shopId UUID de la boutique active (nullable pour multi-boutique)
+     * @param phoneNumber NumÃ©ro de tÃ©lÃ©phone
+     */
+    public String generateToken(UUID id, String name, String userType, UUID shopId, String phoneNumber)
     {
         return Jwts.builder()
                     .setSubject(id.toString())
+                    .claim("name", name)
                     .claim("userType", userType)
                     .claim("shopId", shopId != null ? shopId.toString() : null)
                     .claim("phoneNumber", phoneNumber)
@@ -56,9 +74,10 @@ public class JwtProvider
                 .getBody();
 
         String shopIdStr = claims.get("shopId", String.class);
-        
+
         return AuthPrincipal.builder()
                 .id(UUID.fromString(claims.getSubject()))
+                .name(claims.get("name", String.class))
                 .userType(claims.get("userType", String.class))
                 .shopId(shopIdStr != null ? UUID.fromString(shopIdStr) : null)
                 .phoneNumber(claims.get("phoneNumber", String.class))

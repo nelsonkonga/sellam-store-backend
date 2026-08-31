@@ -80,12 +80,16 @@ public class SyncService
         transactionTemplate.execute(status -> {
             UUID shopId = UUID.fromString(action.getShopId());
             Map<String, Object> payload = action.getPayload();
-            
+
             String customerName = (String) payload.get("customerName");
-            
+            String localCreatedAt = action.getLocalCreatedAt(); // Date réelle de création locale
+            String soldBy = action.getSoldBy(); // ID de l'utilisateur qui a créé la facture
+
             // 1. Create invoice
             InvoiceDTO.CreateInvoiceRequest createReq = InvoiceDTO.CreateInvoiceRequest.builder()
                     .customerName(customerName)
+                    .localCreatedAt(localCreatedAt) // Passer la date locale
+                    .soldBy(soldBy) // Passer l'ID utilisateur
                     .build();
             InvoiceDTO.InvoiceResponse invoice = invoiceService.createInvoice(shopId, createReq);
             
@@ -108,7 +112,7 @@ public class SyncService
                         lineReq.discountType((String) line.get("lineDiscountType"));
                     }
                     
-                    invoiceService.addLine(invoice.getId(), lineReq.build());
+                    invoiceService.addLine(invoice.getId(), lineReq.build(), null);
                 }
             }
             
@@ -121,17 +125,33 @@ public class SyncService
                         .discountValue(discountAmt)
                         .discountType(discountType)
                         .build();
-                invoiceService.applyInvoiceDiscount(invoice.getId(), discountReq);
+                invoiceService.applyInvoiceDiscount(invoice.getId(), discountReq, null);
             }
-            
+
             String paymentMethod = (String) payload.get("paymentMethod");
-            
+
             // 4. Validate invoice
             InvoiceDTO.ValidateInvoiceRequest validateReq = InvoiceDTO.ValidateInvoiceRequest.builder()
                     .customerName(customerName)
                     .paymentMethod(paymentMethod)
                     .build();
-            invoiceService.validateInvoice(invoice.getId(), validateReq, null);
+
+            // Créer un faux AuthPrincipal avec l'ID utilisateur réel pour attribution correcte
+            com.sellam.store.common.security.AuthPrincipal fakePrincipal = null;
+            if (soldBy != null) {
+                try {
+                    UUID personId = UUID.fromString(soldBy);
+                    fakePrincipal = com.sellam.store.common.security.AuthPrincipal.builder()
+                            .id(personId)
+                            .userType("USER") // Type utilisateur par défaut
+                            .shopId(shopId)
+                            .build();
+                } catch (Exception e) {
+                    log.warn("[SYNC] Impossible de créer AuthPrincipal pour soldBy={}: {}", soldBy, e.getMessage());
+                }
+            }
+
+            invoiceService.validateInvoice(invoice.getId(), validateReq, fakePrincipal);
             return null;
         });
     }
@@ -152,7 +172,7 @@ public class SyncService
                     .productId(productId)
                     .quantity(quantity)
                     .build();
-            invoiceService.addLine(invoice.getId(), lineReq);
+            invoiceService.addLine(invoice.getId(), lineReq, null);
 
             invoiceService.validateInvoice(invoice.getId(), null, null);
             return null;
