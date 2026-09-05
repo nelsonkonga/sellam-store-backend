@@ -1,5 +1,5 @@
 # ============================================================
-# Sellam Backend — Spring Boot / Maven
+# Sellam Backend — Spring Boot / Maven / Java
 # ============================================================
 
 # ----- Maven / Java build output -----
@@ -16,11 +16,13 @@ pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
 release.properties
+release-pom.xml
+release-backup-pom.xml
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# ----- Spring Boot / IDE -----
+# ----- IDE / Editor -----
 .apt_generated/
 .classpath
 .factorypath
@@ -38,33 +40,55 @@ buildNumber.properties
 /nbbuild/
 /nbdist/
 /dist/
+*.iml
+*.ipr
+*.idsignature
 
-# ----- VS Code -----
+# ----- VS Code / Editor -----
 .vscode/
-
-# ----- OS -----
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
 .DS_Store
+
+# ----- OS files -----
+.DS_Store
+.AppleDouble
+.LSOverride
+.DS_Store?
 Thumbs.db
+ehthumbs.db
 Desktop.ini
+$RECYCLE.BIN/
 
 # ----- Logs / runtime -----
 *.log
+*.log.*
 logs/
+logs*.txt
 *.pid
-hs_err_pid*
+hs_err_pid*.log
 compile_log.txt
+java_pid*.hprof
 
-# ----- Secrets / env -----
+# ----- Secrets / configuration -----
 .env
 .env.*
 !.env.example
 application-local.properties
 application-dev.properties
+application-test.properties
 application-prod.properties
+application-staging.properties
 !application.properties
 local.properties
 *.secret
 secrets.*
+keystore*
+*.p12
+*.pfx
+*.jks
 
 # ----- Fichiers locaux / brouillons -----
 MIGRATIONS.sql
@@ -73,13 +97,34 @@ MIGRATIONS.sql
 *.orig
 *.swp
 *~
+.tmp/
+.cache/
 
-# ----- Outils locaux -----
-.terraform/
+# ----- Python tools -----
 .venv/
 venv/
+env/
+ENV/
+__pycache__/
+*.pyc
 .python-version
 
-# ----- Gemini / Antigravity -----
+# ----- Development tools -----
+.terraform/
+.docker/
+docker-compose.override.yml
+
+# ----- Generated sources -----
+src/main/java/generated/
+src/test/java/generated/
+
+# ----- Database -----
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# ----- Gemini / Antigravity agent -----
 .agents/
 .gemini/
+.copilot/

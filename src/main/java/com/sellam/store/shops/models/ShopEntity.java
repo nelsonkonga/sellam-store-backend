@@ -1,8 +1,6 @@
 package com.sellam.store.shops.models;
 
-import com.sellam.store.accounts.models.AccountEntity;
 import com.sellam.store.products.models.ProductEntity;
-import com.sellam.store.users.models.UserEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,13 +42,6 @@ public class ShopEntity
 
     @Builder.Default
     private Boolean autoPrintInvoices = false;
-
-    @ManyToOne
-    @JoinColumn(name = "account_id", nullable = false)
-    private AccountEntity account;
-
-    @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL)
-    private List<UserEntity> users;
 
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL)
     private List<ProductEntity> products;

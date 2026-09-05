@@ -1,10 +1,11 @@
 package com.sellam.store.notifications.config;
+import org.springframework.context.annotation.Profile;
 
 import nl.martijndwars.webpush.PushService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
+
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 

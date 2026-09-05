@@ -34,7 +34,7 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, UUID>
             @org.springframework.data.repository.query.Param("end") LocalDateTime end
     );
 
-    @org.springframework.data.jpa.repository.Query("SELECT i.customerName, SUM(i.totalAmount), COUNT(i.id) FROM InvoiceEntity i WHERE i.shop.id = :shopId AND i.status = 'VALIDATED' AND i.customerName IS NOT NULL AND i.createdAt BETWEEN :start AND :end GROUP BY i.customerName")
+    @org.springframework.data.jpa.repository.Query("SELECT i.customerName, SUM(i.totalAmount) AS totalRevenue, COUNT(i.id) FROM InvoiceEntity i WHERE i.shop.id = :shopId AND i.status = 'VALIDATED' AND i.customerName IS NOT NULL AND i.createdAt BETWEEN :start AND :end GROUP BY i.customerName ORDER BY SUM(i.totalAmount) DESC")
     List<Object[]> getCustomerPerformance(
             @org.springframework.data.repository.query.Param("shopId") UUID shopId,
             @org.springframework.data.repository.query.Param("start") LocalDateTime start,

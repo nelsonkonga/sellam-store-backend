@@ -96,6 +96,7 @@ public class ProductsDTO
     {
         ProductResponse product;
         BigDecimal totalSold;
+        BigDecimal totalMargin;
         String unitLabel;
     }
 }

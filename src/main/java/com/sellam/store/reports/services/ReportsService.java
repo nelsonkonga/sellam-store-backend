@@ -1,13 +1,15 @@
 package com.sellam.store.reports.services;
 
-import com.sellam.store.dailybalance.models.DailyBalanceEntity;
-import com.sellam.store.dailybalance.repositories.DailyBalanceRepository;
+import com.sellam.store.cash.models.CashRegisterSessionEntity;
+import com.sellam.store.cash.models.CashSessionStatusEnum;
+import com.sellam.store.cash.repositories.CashRegisterSessionRepository;
 import com.sellam.store.invoices.models.InvoiceEntity;
 import com.sellam.store.invoices.models.InvoiceStatusEnum;
 import com.sellam.store.invoices.repositories.InvoiceRepository;
 import com.sellam.store.reports.dto.ReportsDTO;
 import com.sellam.store.sales.models.SaleEntity;
 import com.sellam.store.sales.repositories.SalesRepository;
+import com.sellam.store.shops.repositories.ShopRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,14 +26,22 @@ public class ReportsService {
 
     private final InvoiceRepository invoiceRepository;
     private final SalesRepository salesRepository;
-    private final DailyBalanceRepository dailyBalanceRepository;
+    private final CashRegisterSessionRepository cashSessionRepository;
     private final com.sellam.store.products.repositories.ProductsRepository productsRepository;
+    private final ShopRepository shopRepository;
 
-    public ReportsService(InvoiceRepository invoiceRepository, SalesRepository salesRepository, DailyBalanceRepository dailyBalanceRepository, com.sellam.store.products.repositories.ProductsRepository productsRepository) {
+    public ReportsService(InvoiceRepository invoiceRepository, SalesRepository salesRepository, CashRegisterSessionRepository cashSessionRepository, com.sellam.store.products.repositories.ProductsRepository productsRepository, ShopRepository shopRepository) {
         this.invoiceRepository = invoiceRepository;
         this.salesRepository = salesRepository;
-        this.dailyBalanceRepository = dailyBalanceRepository;
+        this.cashSessionRepository = cashSessionRepository;
         this.productsRepository = productsRepository;
+        this.shopRepository = shopRepository;
+    }
+
+    public String getShopName(UUID shopId) {
+        return shopRepository.findById(shopId)
+                .map(shop -> shop.getName() != null ? shop.getName() : "Boutique")
+                .orElse("Boutique");
     }
 
     public ReportsDTO.SummaryReport getSummaryReport(UUID shopId, LocalDate startDate, LocalDate endDate) {
@@ -64,9 +74,14 @@ public class ReportsService {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
 
-        List<Object[]> results = salesRepository.getProductPerformance(shopId, start, end);
+        List<Object[]> results;
+        if ("margin".equalsIgnoreCase(sortBy)) {
+            results = salesRepository.getProductPerformanceOrderByMargin(shopId, start, end);
+        } else {
+            results = salesRepository.getProductPerformanceOrderByQuantity(shopId, start, end);
+        }
 
-        List<ReportsDTO.TopProductItem> items = results.stream().map(row -> {
+        return results.stream().map(row -> {
             String name = (String) row[0];
             BigDecimal qty = (BigDecimal) row[1];
             BigDecimal margin = (BigDecimal) row[2];
@@ -76,22 +91,36 @@ public class ReportsService {
                     .marginGenerated(margin != null ? margin : BigDecimal.ZERO)
                     .build();
         }).collect(Collectors.toList());
-
-        if ("margin".equalsIgnoreCase(sortBy)) {
-            items.sort((a, b) -> b.getMarginGenerated().compareTo(a.getMarginGenerated()));
-        } else {
-            items.sort((a, b) -> b.getQuantitySold().compareTo(a.getQuantitySold()));
-        }
-
-        return items;
     }
 
+
     public List<ReportsDTO.CashReliabilityItem> getCashReliability(UUID shopId, LocalDate startDate, LocalDate endDate) {
-        List<DailyBalanceEntity> balances = dailyBalanceRepository.findByShop_IdAndBalanceDateBetweenOrderByBalanceDateAsc(shopId, startDate, endDate);
-        return balances.stream().map(b -> ReportsDTO.CashReliabilityItem.builder()
-                .date(b.getBalanceDate())
-                .discrepancy(b.getDiscrepancy() != null ? b.getDiscrepancy() : BigDecimal.ZERO)
-                .build()).collect(Collectors.toList());
+        // Le contrôle de caisse se fait désormais par session (par caisse, par employé),
+        // et non plus via un bilan boutique global unique par jour. On reconstitue donc
+        // ce rapport en agrégeant les écarts de toutes les sessions clôturées dans la
+        // plage demandée, toutes caisses confondues, regroupées par jour de clôture.
+        List<CashRegisterSessionEntity> sessions = cashSessionRepository.findByShopIdOrderByOpenedAtDesc(shopId);
+
+        return sessions.stream()
+                .filter(s -> s.getStatus() == CashSessionStatusEnum.CLOSED)
+                .filter(s -> s.getClosedAt() != null)
+                .filter(s -> {
+                    LocalDate closedDate = s.getClosedAt().toLocalDate();
+                    return !closedDate.isBefore(startDate) && !closedDate.isAfter(endDate);
+                })
+                .collect(Collectors.groupingBy(
+                        s -> s.getClosedAt().toLocalDate(),
+                        Collectors.reducing(BigDecimal.ZERO,
+                                s -> s.getDiscrepancy() != null ? s.getDiscrepancy() : BigDecimal.ZERO,
+                                BigDecimal::add)
+                ))
+                .entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .map(entry -> ReportsDTO.CashReliabilityItem.builder()
+                        .date(entry.getKey())
+                        .discrepancy(entry.getValue())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     public List<ReportsDTO.NegativeMarginSaleItem> getNegativeMarginSales(UUID shopId, LocalDate startDate, LocalDate endDate) {
@@ -179,6 +208,7 @@ public class ReportsService {
                 .build()
         ).collect(Collectors.toList());
     }
+
 
     // --- VAGUE 3 ---
 

@@ -66,3 +66,81 @@ CREATE TABLE IF NOT EXISTS legacy_id_mappings (
     mapped_at TIMESTAMP,
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
+
+-- Cash Register Tables
+CREATE TABLE IF NOT EXISTS cash_registers (
+    id UUID PRIMARY KEY,
+    shop_id UUID NOT NULL,
+    label VARCHAR(255) NOT NULL,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shops(id)
+);
+
+CREATE TABLE IF NOT EXISTS cash_register_sessions (
+    id UUID PRIMARY KEY,
+    register_id UUID NOT NULL,
+    opened_by_id UUID NOT NULL,
+    opened_at TIMESTAMP NOT NULL,
+    opening_cash_amount DECIMAL(15,2) NOT NULL CHECK (opening_cash_amount >= 0),
+    closed_by_id UUID,
+    closed_at TIMESTAMP,
+    closing_declared_amount DECIMAL(15,2) CHECK (closing_declared_amount IS NULL OR closing_declared_amount >= 0),
+    closing_computed_amount DECIMAL(15,2),
+    discrepancy DECIMAL(15,2),
+    status VARCHAR(50) NOT NULL,
+    FOREIGN KEY (register_id) REFERENCES cash_registers(id),
+    FOREIGN KEY (opened_by_id) REFERENCES persons(id),
+    FOREIGN KEY (closed_by_id) REFERENCES persons(id)
+);
+
+CREATE TABLE IF NOT EXISTS cash_movements (
+    id UUID PRIMARY KEY,
+    session_id UUID NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    reason TEXT,
+    reference_invoice_id UUID,
+    effectue_par_id UUID NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES cash_register_sessions(id),
+    FOREIGN KEY (effectue_par_id) REFERENCES persons(id)
+);
+
+-- Support & Ticketing Tables
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id UUID PRIMARY KEY,
+    author_id UUID NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    priority VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    resolved_at TIMESTAMP,
+    FOREIGN KEY (author_id) REFERENCES persons(id)
+);
+
+CREATE TABLE IF NOT EXISTS support_ticket_messages (
+    id UUID PRIMARY KEY,
+    ticket_id UUID NOT NULL,
+    sender_id UUID,
+    message TEXT NOT NULL,
+    is_system_message BOOLEAN DEFAULT false,
+    created_at TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES support_tickets(id),
+    FOREIGN KEY (sender_id) REFERENCES persons(id)
+);
+
+CREATE TABLE IF NOT EXISTS support_audit_logs (
+    id UUID PRIMARY KEY,
+    admin_id UUID NOT NULL,
+    target_user_id UUID NOT NULL,
+    action_type VARCHAR(50) NOT NULL,
+    reason TEXT NOT NULL,
+    ticket_id UUID,
+    timestamp TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES persons(id),
+    FOREIGN KEY (target_user_id) REFERENCES persons(id),
+    FOREIGN KEY (ticket_id) REFERENCES support_tickets(id)
+);

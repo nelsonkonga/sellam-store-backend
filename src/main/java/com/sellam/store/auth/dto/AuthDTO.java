@@ -15,16 +15,16 @@ public class AuthDTO
     @Builder
     public static class RegisterRequest
     {
-        @NonNull
+        @NotBlank(message = "Le nom est requis")
         private String name;
 
-        @NonNull
         @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Le numéro doit être au format international E.164 (ex: +237690000000)")
         private String phoneNumber;
 
-        @NonNull
+        @NotBlank(message = "Le mot de passe est requis")
         private String password;
 
+        @jakarta.validation.constraints.Email(message = "Format d'email invalide")
         private String email;
     }
 

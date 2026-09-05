@@ -1,14 +1,18 @@
 package com.sellam.store.shops.services;
 
-import com.sellam.store.accounts.models.AccountEntity;
-import com.sellam.store.accounts.repositories.AccountRepository;
 import com.sellam.store.common.exception.ResourceNotFoundException;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.models.ShopMembershipEntity;
+import com.sellam.store.identity.repositories.PersonRepository;
+import com.sellam.store.identity.repositories.ShopMembershipRepository;
 import com.sellam.store.shops.dto.ShopDTO;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
+import com.sellam.store.users.models.RoleEnum;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -20,13 +24,14 @@ public class ShopService
 {
 
     private final ShopRepository shopRepository;
-    private final AccountRepository accountRepository;
+    private final PersonRepository personRepository;
+    private final ShopMembershipRepository shopMembershipRepository;
 
 
     public ShopDTO.ShopResponse createShop(ShopDTO.ShopRequest request, UUID accountId)
     {
 
-        AccountEntity account = accountRepository.findById(accountId)
+        PersonEntity person = personRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Compte introuvable"));
 
         ShopEntity shop = ShopEntity.builder()
@@ -35,22 +40,36 @@ public class ShopService
                 .logoUrl(request.getLogoUrl())
                 .phoneNumber(request.getPhoneNumber())
                 .taxpayerNumber(request.getTaxpayerNumber())
-                .account(account)
                 .build();
 
         ShopEntity newShop = shopRepository.save(shop);
+
+        ShopMembershipEntity membership = new ShopMembershipEntity();
+        membership.setPerson(person);
+        membership.setShop(newShop);
+        membership.setRole(RoleEnum.MANAGER);
+        membership.setActive(true);
+        membership.setJoinedAt(LocalDateTime.now());
+        
+        shopMembershipRepository.save(membership);
+
         return toResponse(newShop);
     }
 
     public List<ShopDTO.ShopResponse> listShops(UUID accountId)
     {
-        return shopRepository.findByAccount_Id(accountId)
+        return shopMembershipRepository.findByPersonId(accountId)
                 .stream()
+                .filter(ShopMembershipEntity::isActive)
+                .map(ShopMembershipEntity::getShop)
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     public ShopDTO.ShopResponse getShopById(UUID shopId) {
+        if (shopId == null) {
+            throw new ResourceNotFoundException("Aucune boutique associée à ce compte");
+        }
         ShopEntity shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new ResourceNotFoundException("Boutique introuvable"));
         return toResponse(shop);

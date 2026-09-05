@@ -49,4 +49,18 @@ public interface SalesRepository extends JpaRepository<SaleEntity, UUID>
             @org.springframework.data.repository.query.Param("start") LocalDateTime start,
             @org.springframework.data.repository.query.Param("end") LocalDateTime end
     );
+
+    @org.springframework.data.jpa.repository.Query("SELECT s.product.name, SUM(s.quantity) as qty, SUM(s.margin) as totalMargin FROM SaleEntity s WHERE s.shop.id = :shopId AND s.status = 'CONFIRMED' AND s.soldAt BETWEEN :start AND :end GROUP BY s.product.name ORDER BY totalMargin DESC")
+    List<Object[]> getProductPerformanceOrderByMargin(
+            @org.springframework.data.repository.query.Param("shopId") UUID shopId,
+            @org.springframework.data.repository.query.Param("start") LocalDateTime start,
+            @org.springframework.data.repository.query.Param("end") LocalDateTime end
+    );
+
+    @org.springframework.data.jpa.repository.Query("SELECT s.product.name, SUM(s.quantity) as qty, SUM(s.margin) FROM SaleEntity s WHERE s.shop.id = :shopId AND s.status = 'CONFIRMED' AND s.soldAt BETWEEN :start AND :end GROUP BY s.product.name ORDER BY qty DESC")
+    List<Object[]> getProductPerformanceOrderByQuantity(
+            @org.springframework.data.repository.query.Param("shopId") UUID shopId,
+            @org.springframework.data.repository.query.Param("start") LocalDateTime start,
+            @org.springframework.data.repository.query.Param("end") LocalDateTime end
+    );
 }

@@ -10,7 +10,9 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -45,7 +47,6 @@ import com.sellam.store.invoices.models.InvoiceStatusEnum;
 import com.sellam.store.invoices.repositories.InvoiceCounterRepository;
 import com.sellam.store.invoices.repositories.InvoiceHistoryRepository;
 import com.sellam.store.invoices.repositories.InvoiceRepository;
-import com.sellam.store.dailybalance.services.DailyBalanceService;
 import com.sellam.store.products.models.ProductEntity;
 import com.sellam.store.products.repositories.ProductsRepository;
 import com.sellam.store.sales.models.SaleEntity;
@@ -69,8 +70,29 @@ public class InvoiceService
     private final ShopRepository shopRepository;
     private final PersonRepository personRepository;
     private final InvoiceHistoryRepository invoiceHistoryRepository;
-    private final DailyBalanceService dailyBalanceService;
 
+
+    /**
+     * Parse une date/heure envoyée par le frontend, en acceptant plusieurs formats ISO 8601 :
+     * - Avec suffixe "Z" (UTC), tel que produit par `new Date().toISOString()` en JavaScript
+     *   (ex: "2026-09-04T06:51:51.309Z")
+     * - Avec offset explicite (ex: "2026-09-04T06:51:51.309+02:00")
+     * - Sans fuseau horaire (ex: "2026-09-04T06:51:51.309"), déjà "naïf"
+     * LocalDateTime.parse() seul ne gère que le dernier cas ; les deux premiers doivent
+     * d'abord être résolus en Instant/OffsetDateTime puis convertis vers le fuseau serveur.
+     */
+    private LocalDateTime parseFlexibleDateTime(String rawDate)
+    {
+        try {
+            // Cas 1 : format avec suffixe "Z" ou offset explicite (le plus courant, envoyé par le frontend)
+            return java.time.OffsetDateTime.parse(rawDate)
+                    .atZoneSameInstant(ZoneId.systemDefault())
+                    .toLocalDateTime();
+        } catch (DateTimeParseException e) {
+            // Cas 2 : déjà un format "naïf" sans fuseau horaire
+            return LocalDateTime.parse(rawDate);
+        }
+    }
 
     @Transactional
     public InvoiceDTO.InvoiceResponse createInvoice(UUID shopId, InvoiceDTO.CreateInvoiceRequest request)
@@ -79,10 +101,14 @@ public class InvoiceService
                 .orElseThrow(() -> new ResourceNotFoundException("Boutique introuvable"));
 
         // Validation de la date locale si fournie (pour la synchronisation hors ligne)
+        // Le frontend envoie la date via `new Date().toISOString()`, qui produit un format
+        // ISO 8601 en UTC avec suffixe "Z" (ex: "2026-09-04T06:51:51.309Z"). LocalDateTime.parse()
+        // seul rejette ce suffixe car LocalDateTime ne porte pas d'information de fuseau horaire.
+        // On parse donc explicitement en Instant (UTC), puis on convertit vers le fuseau serveur.
         LocalDateTime createdAt = null;
         if (request.getLocalCreatedAt() != null) {
             try {
-                createdAt = LocalDateTime.parse(request.getLocalCreatedAt());
+                createdAt = parseFlexibleDateTime(request.getLocalCreatedAt());
                 LocalDateTime now = LocalDateTime.now();
 
                 // Rejeter les dates dans le futur (tolérance 1 heure pour désynchronisation horaire)
@@ -342,11 +368,6 @@ public class InvoiceService
         }
 
         recomputeInvoiceTotals(invoice);
-
-        // Recalculer DailyBalanceEntity du jour où la ligne a été ajoutée
-        if (lineAddedDate != null) {
-            dailyBalanceService.recomputeDailyBalanceForDate(invoice.getShop().getId(), lineAddedDate.toLocalDate());
-        }
 
         return toResponse(invoice, remainingLines);
     }
@@ -843,6 +864,13 @@ public class InvoiceService
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable"));
         return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
+    }
+
+    public UUID getInvoiceShopId(UUID invoiceId)
+    {
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable"));
+        return invoice.getShop().getId();
     }
 
     /**

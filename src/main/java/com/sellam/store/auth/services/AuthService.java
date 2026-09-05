@@ -185,8 +185,12 @@ public class AuthService
             emailService.sendVerificationEmail(savedPerson.getEmail(), verificationToken);
         }
 
-        // GÃ©nÃ©rer le token sans shopId (sera dÃ©terminÃ© dynamiquement)
-        String token = jwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "PERSON", null, savedPerson.getPhoneNumber());
+        // Génère le token avec userType "ACCOUNT" (et non "PERSON") : c'est ce
+        // claim, pas la réponse JSON, que @sec.isAccountOwner lit sur chaque
+        // requête ultérieure. Un token "PERSON" faisait échouer createShop
+        // (403 Access Denied) pour tout compte fraîchement inscrit, alors que
+        // la réponse ci-dessous annonçait "ACCOUNT" au frontend.
+        String token = jwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "ACCOUNT", null, savedPerson.getPhoneNumber());
 
         return AuthDTO.AuthResponse.builder()
                 .token(token)
@@ -291,17 +295,37 @@ public class AuthService
 
         log.info("Login successful: {}", person.getId());
 
-        // DÃ©terminer le userType et shopId pour compatibilitÃ©
-        String userType = "ACCOUNT"; // Par dÃ©faut
+        // Détermine le userType de façon durable via LegacyIdMapping.legacyType
+        // quand ce mapping existe (créé par AuthService.register pour un
+        // propriétaire ACCOUNT). UserService.createUser (création d'employé)
+        // n'écrit pas ce mapping : dans ce cas on retombe sur la présence de
+        // memberships pour distinguer un employé (USER) d'un compte hérité
+        // sans mapping du tout (ACCOUNT, cas legacy pré-migration).
+        //
+        // Important : on ne déduit plus "a des memberships" => USER pour un
+        // ACCOUNT qui a un mapping explicite. Un propriétaire obtient
+        // automatiquement une ShopMembershipEntity (rôle MANAGER) dès qu'il
+        // crée sa première boutique ; le déduire uniquement des memberships
+        // le reclassait à tort en USER dès sa deuxième connexion, bloquant
+        // ensuite createShop (protégé par @sec.isAccountOwner) avec un 403.
+        Optional<LegacyEntityType> mappedType = legacyIdMappingRepository.findByPersonId(person.getId())
+                .map(com.sellam.store.identity.models.LegacyIdMapping::getLegacyType);
+
+        var memberships = shopMembershipRepository.findByPersonId(person.getId());
+
+        LegacyEntityType legacyType = mappedType.orElseGet(() ->
+                memberships.isEmpty() ? LegacyEntityType.ACCOUNT : LegacyEntityType.USER
+        );
+
+        String userType = legacyType.name(); // "ACCOUNT" ou "USER"
         UUID shopId = null;
 
-        // VÃ©rifier si cette personne a des memberships actifs
-        var memberships = shopMembershipRepository.findByPersonId(person.getId());
-        if (!memberships.isEmpty())
+        if (legacyType == LegacyEntityType.USER)
         {
-            // Si la personne a des memberships, on considÃ¨re que c'est un USER
-            userType = "USER";
-            // Prendre le premier shop actif comme shopId par dÃ©faut
+            // Pour un employé, on résout un shopId par défaut pour compatibilité
+            // avec le frontend actuel (ex: pré-remplissage), mais ce shopId
+            // n'est plus la source de vérité pour l'accès boutique côté backend
+            // (voir ShopAccessGuard / ShopMembershipRepository.findActiveMembership).
             shopId = memberships.stream()
                     .filter(m -> m.isActive())
                     .findFirst()
@@ -309,7 +333,7 @@ public class AuthService
                     .orElse(null);
         }
 
-        // GÃ©nÃ©rer le token
+        // Génère le token
         String token = jwtProvider.generateToken(person.getId(), person.getName(), userType, shopId, person.getPhoneNumber());
 
         return AuthDTO.AuthResponse.builder()

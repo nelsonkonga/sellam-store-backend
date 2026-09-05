@@ -1,51 +1,43 @@
 package com.sellam.store.profile.services;
 
-import com.sellam.store.accounts.models.AccountEntity;
-import com.sellam.store.accounts.repositories.AccountRepository;
 import com.sellam.store.common.exception.ResourceNotFoundException;
-import com.sellam.store.users.models.UserEntity;
-import com.sellam.store.users.repositories.UserRepository;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.repositories.PersonRepository;
 import com.sellam.store.profile.dto.ProfileDTO;
 import com.sellam.store.common.security.AuthPrincipal;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.context.annotation.Profile;
 
+
+/**
+ * Service de profil adaptÃ© au nouveau modÃ¨le PersonEntity.
+ * 
+ * Changements par rapport Ã  l'ancien ProfileService :
+ * - Utilise PersonRepository au lieu de AccountRepository/UserRepository
+ * - Plus de distinction entre ACCOUNT et USER : une seule entitÃ© PersonEntity
+ * - Compatible avec le frontend via AuthPrincipal
+ */
 @Service
+
 @AllArgsConstructor
-@Profile("!phase1")
 public class ProfileService
 {
 
-    private final AccountRepository accountRepository;
-    private final UserRepository userRepository;
+    private final PersonRepository personRepository;
 
     public ProfileDTO.ProfileResponse getProfile(AuthPrincipal principal)
     {
-        if ("USER".equals(principal.getUserType()))
-        {
-            UserEntity user = userRepository.findById(principal.getId())
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            return ProfileDTO.ProfileResponse.builder()
-                    .name(user.getName())
-                    .phoneNumber(user.getPhoneNumber())
-                    .profilePictureUrl(user.getProfilePictureUrl())
-                    .themePreference(user.getThemePreference())
-                    .build();
-        }
-        else
-        {
-            AccountEntity account = accountRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-            return ProfileDTO.ProfileResponse.builder()
-                    .name(account.getName())
-                    .phoneNumber(account.getPhoneNumber())
-                    .email(account.getEmail())
-                    .profilePictureUrl(account.getProfilePictureUrl())
-                    .themePreference(account.getThemePreference())
-                    .build();
-        }
+        PersonEntity person = personRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Personne introuvable"));
+
+        return ProfileDTO.ProfileResponse.builder()
+                .name(person.getName())
+                .phoneNumber(person.getPhoneNumber())
+                .email(person.getEmail())
+                .profilePictureUrl(person.getProfilePictureUrl())
+                .themePreference(person.getThemePreference())
+                .build();
     }
 
     @Transactional
@@ -53,19 +45,10 @@ public class ProfileService
                                       ProfileDTO.ThemeUpdateRequest request
                                         )
     {
-        if ("USER".equals(principal.getUserType()))
-        {
-            UserEntity user = userRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-            user.setThemePreference(request.getThemePreference());
-            userRepository.save(user);
-        }
-        else
-        {
-            AccountEntity account = accountRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-            account.setThemePreference(request.getThemePreference());
-            accountRepository.save(account);
-        }
+        PersonEntity person = personRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Personne introuvable"));
+
+        person.setThemePreference(request.getThemePreference());
+        personRepository.save(person);
     }
 }

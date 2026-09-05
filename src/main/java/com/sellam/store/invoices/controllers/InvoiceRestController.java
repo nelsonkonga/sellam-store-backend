@@ -102,27 +102,34 @@ public class InvoiceRestController
         return invoiceService.validateInvoice(id, request, principal);
     }
 
-    // Pas de restriction de permission métier : consulter/imprimer une facture déjà
-    // créée est une action de lecture peu sensible, laissée à authenticated() de base.
+    // Vérification d'accès à la boutique requise pour consulter/imprimer une facture
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public byte[] pdf(@PathVariable UUID id, HttpServletResponse response)
+    public byte[] pdf(@PathVariable UUID id, HttpServletResponse response, Authentication authentication)
     {
+        UUID shopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, String.format("inline; filename=facture-%s.pdf", id.toString()));
         return invoiceService.generatePdf(id);
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public List<InvoiceDTO.InvoiceResponse> list(@RequestParam UUID shopId)
+    public List<InvoiceDTO.InvoiceResponse> list(@RequestParam UUID shopId, Authentication authentication)
     {
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         return invoiceService.listInvoices(shopId);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public InvoiceDTO.InvoiceResponse getInvoice(@PathVariable UUID id)
+    public InvoiceDTO.InvoiceResponse getInvoice(@PathVariable UUID id, Authentication authentication)
     {
+        UUID shopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         return invoiceService.getInvoice(id);
     }
 }

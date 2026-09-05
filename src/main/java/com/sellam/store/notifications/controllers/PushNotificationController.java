@@ -1,4 +1,5 @@
 package com.sellam.store.notifications.controllers;
+import org.springframework.context.annotation.Profile;
 
 import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.notifications.models.PushSubscriptionEntity;
@@ -10,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.context.annotation.Profile;
+
 
 import java.util.Map;
 import java.util.UUID;

@@ -1,4 +1,5 @@
 package com.sellam.store.notifications.services;
+import org.springframework.context.annotation.Profile;
 
 import com.sellam.store.notifications.models.PushSubscriptionEntity;
 import com.sellam.store.notifications.repositories.PushSubscriptionRepository;
@@ -8,7 +9,7 @@ import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import org.jose4j.lang.JoseException;
 import org.springframework.stereotype.Service;
-import org.springframework.context.annotation.Profile;
+
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

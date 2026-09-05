@@ -52,11 +52,11 @@ public class ShopRestController
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
 
-        if ("USER".equals(principal.getUserType()))
-        {
-            return List.of(shopService.getShopById(principal.getShopId()));
-        }
-
+        // Note : on ne fait plus confiance à principal.getShopId() (issu du JWT)
+        // pour résoudre les boutiques d'un USER. Ce claim peut devenir obsolète
+        // (membership révoquée/supprimée entre-temps) sans que le token expire,
+        // ce qui provoquait un IllegalArgumentException sur un id null.
+        // On résout systématiquement via les memberships actives en base.
         return shopService.listShops(principal.getId());
     }
 

@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.context.annotation.Profile;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -23,18 +23,18 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Contrôleur pour la gestion de l'identité et des memberships multi-boutique.
+ * ContrÃ´leur pour la gestion de l'identitÃ© et des memberships multi-boutique.
  * 
  * Endpoints :
- * - Gestion des memberships (création, modification, suppression)
+ * - Gestion des memberships (crÃ©ation, modification, suppression)
  * - Changement de contact (phone/email) avec validation des 3 mois
  * - Liste des boutiques accessibles
- * - Sélection de boutique active
+ * - SÃ©lection de boutique active
  */
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/identity")
-@Profile("phase1")
+
 public class IdentityController
 {
 
@@ -43,7 +43,7 @@ public class IdentityController
     private final ShopMembershipRepository shopMembershipRepository;
 
     /**
-     * Récupère toutes les memberships de la personne authentifiée.
+     * RÃ©cupÃ¨re toutes les memberships de la personne authentifiÃ©e.
      */
     @GetMapping("/memberships")
     @ResponseStatus(HttpStatus.OK)
@@ -58,7 +58,7 @@ public class IdentityController
     }
 
     /**
-     * Récupère la membership pour une boutique spécifique.
+     * RÃ©cupÃ¨re la membership pour une boutique spÃ©cifique.
      */
     @GetMapping("/memberships/shop/{shopId}")
     @ResponseStatus(HttpStatus.OK)
@@ -72,15 +72,15 @@ public class IdentityController
     }
 
     /**
-     * Crée une nouvelle membership (réservé aux gérants de boutique).
+     * CrÃ©e une nouvelle membership (rÃ©servÃ© aux gÃ©rants de boutique).
      *
-     * Règles d'accès :
-     * - ACCOUNT (ancien modèle) : peut créer dans ses boutiques via ShopEntity.account
-     * - PERSON (nouveau modèle) : doit être MANAGER dans la boutique cible
+     * RÃ¨gles d'accÃ¨s :
+     * - ACCOUNT (ancien modÃ¨le) : peut crÃ©er dans ses boutiques via ShopEntity.account
+     * - PERSON (nouveau modÃ¨le) : doit Ãªtre MANAGER dans la boutique cible
      *
-     * NOTE : Le check est strict sur le rôle MANAGER, pas sur la permission effective.
-     * Un CASHIER avec MANAGE_SHOP_SETTINGS via override NE PEUT PAS créer de memberships.
-     * Cette restriction est intentionnelle pour la sensibilité de l'action.
+     * NOTE : Le check est strict sur le rÃ´le MANAGER, pas sur la permission effective.
+     * Un CASHIER avec MANAGE_SHOP_SETTINGS via override NE PEUT PAS crÃ©er de memberships.
+     * Cette restriction est intentionnelle pour la sensibilitÃ© de l'action.
      */
     @PreAuthorize("@sec.isAccountOwner(authentication) || @sec.can(authentication, 'MANAGE_SHOP_SETTINGS')")
     @PostMapping("/memberships")
@@ -91,12 +91,12 @@ public class IdentityController
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
 
-        // Pour ACCOUNT : vérifier via ShopEntity.account (boutiques possédées)
+        // Pour ACCOUNT : vÃ©rifier via ShopEntity.account (boutiques possÃ©dÃ©es)
         if ("ACCOUNT".equals(principal.getUserType()))
         {
             shopAccessGuard.checkShopAccess(principal, request.getShopId());
         }
-        // Pour PERSON : vérifier qu'il est MANAGER dans la boutique cible
+        // Pour PERSON : vÃ©rifier qu'il est MANAGER dans la boutique cible
         else
         {
             var membershipOpt = shopMembershipRepository.findActiveMembership(
@@ -105,14 +105,14 @@ public class IdentityController
             if (membershipOpt.isEmpty())
             {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Seuls les MANAGERS peuvent créer des memberships dans cette boutique");
+                        "Seuls les MANAGERS peuvent crÃ©er des memberships dans cette boutique");
             }
 
             ShopMembershipEntity membership = membershipOpt.get();
             if (membership.getRole() != RoleEnum.MANAGER)
             {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Seuls les MANAGERS peuvent créer des memberships (rôle strict, pas override)");
+                        "Seuls les MANAGERS peuvent crÃ©er des memberships (rÃ´le strict, pas override)");
             }
         }
 
@@ -126,7 +126,7 @@ public class IdentityController
     }
 
     /**
-     * Modifie le rôle d'une membership.
+     * Modifie le rÃ´le d'une membership.
      */
     @PreAuthorize("@sec.can(authentication, 'MANAGE_SHOP_SETTINGS')")
     @PutMapping("/memberships/{membershipId}/role")
@@ -140,14 +140,14 @@ public class IdentityController
 
         ShopMembershipEntity membership = identityService.updateMembershipRole(membershipId, request.getRole());
 
-        // Vérifier que le modificateur a accès à la boutique de la membership
+        // VÃ©rifier que le modificateur a accÃ¨s Ã  la boutique de la membership
         shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
 
         return toMembershipResponse(membership);
     }
 
     /**
-     * Active/désactive une membership.
+     * Active/dÃ©sactive une membership.
      */
     @PreAuthorize("@sec.can(authentication, 'MANAGE_SHOP_SETTINGS')")
     @PatchMapping("/memberships/{membershipId}/toggle-active")
@@ -160,7 +160,7 @@ public class IdentityController
 
         ShopMembershipEntity membership = identityService.toggleMembershipActive(membershipId);
 
-        // Vérifier que le modificateur a accès à la boutique de la membership
+        // VÃ©rifier que le modificateur a accÃ¨s Ã  la boutique de la membership
         shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
 
         return toMembershipResponse(membership);
@@ -178,8 +178,9 @@ public class IdentityController
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
 
-        // Récupérer la membership pour vérifier l'accès avant suppression
-        // Note: besoin d'une méthode pour récupérer par ID dans IdentityService
+        ShopMembershipEntity membership = shopMembershipRepository.findById(membershipId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Membership introuvable"));
+        shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
         identityService.deleteMembership(membershipId);
     }
 
@@ -202,14 +203,14 @@ public class IdentityController
                 request.getRevokedOverrides()
         );
 
-        // Vérifier que le modificateur a accès à la boutique de la membership
+        // VÃ©rifier que le modificateur a accÃ¨s Ã  la boutique de la membership
         shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
 
         return toMembershipResponse(membership);
     }
 
     /**
-     * Change le numéro de téléphone de la personne authentifiée.
+     * Change le numÃ©ro de tÃ©lÃ©phone de la personne authentifiÃ©e.
      */
     @PutMapping("/phone")
     @ResponseStatus(HttpStatus.OK)
@@ -227,7 +228,7 @@ public class IdentityController
     }
 
     /**
-     * Change l'email de la personne authentifiée.
+     * Change l'email de la personne authentifiÃ©e.
      */
     @PutMapping("/email")
     @ResponseStatus(HttpStatus.OK)
@@ -245,7 +246,7 @@ public class IdentityController
     }
 
     /**
-     * Récupère les IDs des boutiques accessibles.
+     * RÃ©cupÃ¨re les IDs des boutiques accessibles.
      */
     @GetMapping("/shops")
     @ResponseStatus(HttpStatus.OK)
@@ -256,7 +257,7 @@ public class IdentityController
     }
 
     /**
-     * Vérifie si la personne peut changer son téléphone.
+     * VÃ©rifie si la personne peut changer son tÃ©lÃ©phone.
      */
     @GetMapping("/can-change-phone")
     @ResponseStatus(HttpStatus.OK)
@@ -272,7 +273,7 @@ public class IdentityController
     }
 
     /**
-     * Vérifie si la personne peut changer son email.
+     * VÃ©rifie si la personne peut changer son email.
      */
     @GetMapping("/can-change-email")
     @ResponseStatus(HttpStatus.OK)

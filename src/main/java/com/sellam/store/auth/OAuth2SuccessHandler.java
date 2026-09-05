@@ -113,7 +113,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
 
     private String buildRedirectUrl(String token, UUID personId, String name, String email, boolean emailVerified)
     {
-        return frontendUrl + "/oauth-callback?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+        // Utiliser un fragment URL (#) au lieu d'un query parameter (?) pour éviter l'exposition du token dans les logs et l'historique
+        return frontendUrl + "/oauth-callback#token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
                 + "&personId=" + personId
                 + "&name=" + URLEncoder.encode(name != null ? name : "", StandardCharsets.UTF_8)
                 + "&email=" + URLEncoder.encode(email != null ? email : "", StandardCharsets.UTF_8)

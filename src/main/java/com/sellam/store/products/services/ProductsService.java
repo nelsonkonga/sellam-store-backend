@@ -128,20 +128,25 @@ public class ProductsService
         productsRepository.save(product);
     }
 
-    public List<ProductsDTO.ProductSalesResponse> listTopSellingProducts(UUID shopId) {
-        return productsRepository.findTopSellingProductsByShopId(shopId)
-                .stream()
-                .map(row -> {
-                    ProductEntity p = (ProductEntity) row[0];
-                    java.math.BigDecimal totalSold = (java.math.BigDecimal) row[1];
-                    return ProductsDTO.ProductSalesResponse.builder()
-                            .product(toPostOutput(p))
-                            .totalSold(totalSold)
-                            .unitLabel(p.getSaleType().getUnitLabel())
-                            .build();
-                })
-                .collect(Collectors.toList());
-    }
+public List<ProductsDTO.ProductSalesResponse> listTopSellingProducts(UUID shopId) {
+    return productsRepository.findTopSellingProductsByShopId(shopId)
+            .stream()
+            .map(row -> {
+                ProductEntity p = (ProductEntity) row[0];
+                java.math.BigDecimal totalMargin = (java.math.BigDecimal) row[1];
+                java.math.BigDecimal totalSold = (java.math.BigDecimal) row[2];
+                
+                return ProductsDTO.ProductSalesResponse.builder()
+                        .product(toPostOutput(p))
+                        .totalSold(totalSold)
+                        .totalMargin(totalMargin)
+                        .unitLabel(p.getSaleType() != null ? p.getSaleType().getUnitLabel() : null)
+                        .build();
+            })
+            .collect(Collectors.toList());
+}
+
+
 
     public ProductsDTO.ProductResponse getProductByBarcode(UUID shopId, String barcode) {
         ProductEntity product = productsRepository.findByShop_IdAndBarcode(shopId, barcode)

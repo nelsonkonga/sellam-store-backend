@@ -8,4 +8,5 @@ public interface IShopAccessGuard
     AuthPrincipal requirePrincipal(Authentication authentication);
     AuthPrincipal requireShopAccess(Authentication authentication, UUID shopId);
     void checkShopAccess(AuthPrincipal principal, UUID shopId);
+    void checkShopAccess(Authentication authentication, UUID shopId);
 }
