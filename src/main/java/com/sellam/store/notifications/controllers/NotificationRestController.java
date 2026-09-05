@@ -1,6 +1,6 @@
 package com.sellam.store.notifications.controllers;
 
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.notifications.dto.NotificationDTO;
 import com.sellam.store.notifications.models.NotificationEntity;
 import com.sellam.store.notifications.repositories.NotificationRepository;
@@ -19,7 +19,7 @@ import java.util.UUID;
 public class NotificationRestController {
 
     private final NotificationRepository notificationRepository;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     @PreAuthorize("@sec.can(authentication, 'VIEW_DAILY_BALANCE')")
     @GetMapping

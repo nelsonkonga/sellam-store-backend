@@ -11,9 +11,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 
+
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/auth")
+
 public class AuthRestController
 {
 
@@ -46,7 +48,7 @@ public class AuthRestController
     public Void resendVerification(Authentication authentication)
     {
         if (authentication == null || authentication.getPrincipal() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur non authentifié");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur non authentifiÃƒÂ©");
         }
 
         AuthPrincipal principal = (AuthPrincipal) authentication.getPrincipal();

@@ -23,6 +23,8 @@ public class SyncDTO
         private String shopId;
         private Map<String, Object> payload;
         private String createdAt;
+        private String localCreatedAt; // Date réelle de création locale pour factures
+        private String soldBy; // ID de l'utilisateur qui a créé la facture
     }
 
     @Data

@@ -13,22 +13,24 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Service pour gérer la logique d'identité multi-boutique.
+ * Service pour gÃ©rer la logique d'identitÃ© multi-boutique.
  * 
- * Fonctionnalités :
- * - Gestion des memberships (création, modification, suppression)
+ * FonctionnalitÃ©s :
+ * - Gestion des memberships (crÃ©ation, modification, suppression)
  * - Validation des changements de contact (limites de 3 mois)
- * - Override pour rôles PLATFORM_ADMIN
- * - Sélection de boutique active
+ * - Override pour rÃ´les PLATFORM_ADMIN
+ * - SÃ©lection de boutique active
  */
 @Service
 @AllArgsConstructor
+
 public class IdentityService
 {
 
@@ -37,7 +39,7 @@ public class IdentityService
     private final ShopRepository shopRepository;
 
     /**
-     * Récupère toutes les memberships actives d'une personne.
+     * RÃ©cupÃ¨re toutes les memberships actives d'une personne.
      */
     public List<ShopMembershipEntity> getActiveMemberships(UUID personId)
     {
@@ -47,7 +49,7 @@ public class IdentityService
     }
 
     /**
-     * Récupère toutes les memberships d'une personne (incluant inactives).
+     * RÃ©cupÃ¨re toutes les memberships d'une personne (incluant inactives).
      */
     public List<ShopMembershipEntity> getAllMemberships(UUID personId)
     {
@@ -55,7 +57,7 @@ public class IdentityService
     }
 
     /**
-     * Récupère la membership d'une personne pour une boutique spécifique.
+     * RÃ©cupÃ¨re la membership d'une personne pour une boutique spÃ©cifique.
      */
     public ShopMembershipEntity getMembership(UUID personId, UUID shopId)
     {
@@ -64,7 +66,7 @@ public class IdentityService
     }
 
     /**
-     * Crée une nouvelle membership pour une personne dans une boutique.
+     * CrÃ©e une nouvelle membership pour une personne dans une boutique.
      */
     @Transactional
     public ShopMembershipEntity createMembership(UUID personId, UUID shopId, RoleEnum role)
@@ -75,10 +77,10 @@ public class IdentityService
         ShopEntity shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new ResourceNotFoundException("Boutique introuvable"));
 
-        // Vérifier si la membership existe déjà
+        // VÃ©rifier si la membership existe dÃ©jÃ 
         if (shopMembershipRepository.findActiveMembership(personId, shopId).isPresent())
         {
-            throw new IllegalArgumentException("Cette personne a déjà une membership active dans cette boutique");
+            throw new IllegalArgumentException("Cette personne a dÃ©jÃ  une membership active dans cette boutique");
         }
 
         ShopMembershipEntity membership = ShopMembershipEntity.builder()
@@ -93,7 +95,7 @@ public class IdentityService
     }
 
     /**
-     * Modifie le rôle d'une membership.
+     * Modifie le rÃ´le d'une membership.
      */
     @Transactional
     public ShopMembershipEntity updateMembershipRole(UUID membershipId, RoleEnum newRole)
@@ -106,7 +108,7 @@ public class IdentityService
     }
 
     /**
-     * Active/désactive une membership.
+     * Active/dÃ©sactive une membership.
      */
     @Transactional
     public ShopMembershipEntity toggleMembershipActive(UUID membershipId)
@@ -147,7 +149,7 @@ public class IdentityService
     }
 
     /**
-     * Vérifie si une personne peut changer son numéro de téléphone.
+     * VÃ©rifie si une personne peut changer son numÃ©ro de tÃ©lÃ©phone.
      * Limitation : 1 changement tous les 3 mois, sauf pour PLATFORM_ADMIN.
      */
     public boolean canChangePhoneNumber(UUID personId)
@@ -162,10 +164,10 @@ public class IdentityService
             return true;
         }
 
-        // Vérifier le délai de 3 mois
+        // VÃ©rifier le dÃ©lai de 3 mois
         if (person.getLastPhoneChangeAt() == null)
         {
-            return true; // Premier changement autorisé
+            return true; // Premier changement autorisÃ©
         }
 
         LocalDateTime threeMonthsAgo = LocalDateTime.now().minusMonths(3);
@@ -173,7 +175,7 @@ public class IdentityService
     }
 
     /**
-     * Vérifie si une personne peut changer son email.
+     * VÃ©rifie si une personne peut changer son email.
      * Limitation : 1 changement tous les 3 mois, sauf pour PLATFORM_ADMIN.
      */
     public boolean canChangeEmail(UUID personId)
@@ -188,10 +190,10 @@ public class IdentityService
             return true;
         }
 
-        // Vérifier le délai de 3 mois
+        // VÃ©rifier le dÃ©lai de 3 mois
         if (person.getLastEmailChangeAt() == null)
         {
-            return true; // Premier changement autorisé
+            return true; // Premier changement autorisÃ©
         }
 
         LocalDateTime threeMonthsAgo = LocalDateTime.now().minusMonths(3);
@@ -199,23 +201,23 @@ public class IdentityService
     }
 
     /**
-     * Change le numéro de téléphone d'une personne avec validation.
+     * Change le numÃ©ro de tÃ©lÃ©phone d'une personne avec validation.
      */
     @Transactional
     public void changePhoneNumber(UUID personId, String newPhoneNumber, boolean isAdminOverride)
     {
         if (!isAdminOverride && !canChangePhoneNumber(personId))
         {
-            throw new IllegalArgumentException("Vous ne pouvez changer votre numéro de téléphone qu'une fois tous les 3 mois");
+            throw new IllegalArgumentException("Vous ne pouvez changer votre numÃ©ro de tÃ©lÃ©phone qu'une fois tous les 3 mois");
         }
 
         PersonEntity person = personRepository.findById(personId)
                 .orElseThrow(() -> new ResourceNotFoundException("Personne introuvable"));
 
-        // Vérifier que le nouveau numéro n'est pas déjà utilisé
+        // VÃ©rifier que le nouveau numÃ©ro n'est pas dÃ©jÃ  utilisÃ©
         if (personRepository.findByPhoneNumber(newPhoneNumber).isPresent())
         {
-            throw new IllegalArgumentException("Ce numéro de téléphone est déjà utilisé");
+            throw new IllegalArgumentException("Ce numÃ©ro de tÃ©lÃ©phone est dÃ©jÃ  utilisÃ©");
         }
 
         person.setPhoneNumber(newPhoneNumber);
@@ -237,20 +239,20 @@ public class IdentityService
         PersonEntity person = personRepository.findById(personId)
                 .orElseThrow(() -> new ResourceNotFoundException("Personne introuvable"));
 
-        // Vérifier que le nouvel email n'est pas déjà utilisé
+        // VÃ©rifier que le nouvel email n'est pas dÃ©jÃ  utilisÃ©
         if (personRepository.findByEmail(newEmail).isPresent())
         {
-            throw new IllegalArgumentException("Cet email est déjà utilisé");
+            throw new IllegalArgumentException("Cet email est dÃ©jÃ  utilisÃ©");
         }
 
         person.setEmail(newEmail);
         person.setLastEmailChangeAt(LocalDateTime.now());
-        person.setEmailVerified(false); // Nécessite re-vérification
+        person.setEmailVerified(false); // NÃ©cessite re-vÃ©rification
         personRepository.save(person);
     }
 
     /**
-     * Récupère les IDs des boutiques actives d'une personne.
+     * RÃ©cupÃ¨re les IDs des boutiques actives d'une personne.
      */
     public List<UUID> getActiveShopIds(UUID personId)
     {
@@ -258,7 +260,7 @@ public class IdentityService
     }
 
     /**
-     * Vérifie si une personne a accès à une boutique spécifique.
+     * VÃ©rifie si une personne a accÃ¨s Ã  une boutique spÃ©cifique.
      */
     public boolean hasAccessToShop(UUID personId, UUID shopId)
     {

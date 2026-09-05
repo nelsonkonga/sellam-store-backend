@@ -1,6 +1,6 @@
 package com.sellam.store.sales.controllers;
 
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.sales.dto.SaleDTO;
 import com.sellam.store.sales.services.SalesService;
 import lombok.AllArgsConstructor;
@@ -19,7 +19,7 @@ public class SalesRestController
 {
 
     private final SalesService salesService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     // Les ventes du jour sont nécessaires au quotidien pour tout employé
     // qui facture (tableau de bord, etc.) — pas de restriction au-delà de l'auth.

@@ -9,7 +9,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -29,16 +33,19 @@ import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
-import com.sellam.store.accounts.models.AccountEntity;
-import com.sellam.store.accounts.repositories.AccountRepository;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.repositories.PersonRepository;
 import com.sellam.store.common.exception.ResourceNotFoundException;
 import com.sellam.store.common.security.AuthPrincipal;
 import com.sellam.store.invoices.dto.InvoiceDTO;
 import com.sellam.store.invoices.models.DiscountTypeEnum;
 import com.sellam.store.invoices.models.InvoiceCounterEntity;
 import com.sellam.store.invoices.models.InvoiceEntity;
+import com.sellam.store.invoices.models.InvoiceHistoryActionType;
+import com.sellam.store.invoices.models.InvoiceHistoryEntity;
 import com.sellam.store.invoices.models.InvoiceStatusEnum;
 import com.sellam.store.invoices.repositories.InvoiceCounterRepository;
+import com.sellam.store.invoices.repositories.InvoiceHistoryRepository;
 import com.sellam.store.invoices.repositories.InvoiceRepository;
 import com.sellam.store.products.models.ProductEntity;
 import com.sellam.store.products.repositories.ProductsRepository;
@@ -47,9 +54,6 @@ import com.sellam.store.sales.models.SaleStatusEnum;
 import com.sellam.store.sales.repositories.SalesRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
-import com.sellam.store.users.models.UserEntity;
-import com.sellam.store.users.repositories.UserRepository;
-
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,9 +68,31 @@ public class InvoiceService
     private final SalesRepository salesRepository;
     private final ProductsRepository productsRepository;
     private final ShopRepository shopRepository;
-    private final AccountRepository accountRepository;
-    private final UserRepository usersRepository;
+    private final PersonRepository personRepository;
+    private final InvoiceHistoryRepository invoiceHistoryRepository;
 
+
+    /**
+     * Parse une date/heure envoyée par le frontend, en acceptant plusieurs formats ISO 8601 :
+     * - Avec suffixe "Z" (UTC), tel que produit par `new Date().toISOString()` en JavaScript
+     *   (ex: "2026-09-04T06:51:51.309Z")
+     * - Avec offset explicite (ex: "2026-09-04T06:51:51.309+02:00")
+     * - Sans fuseau horaire (ex: "2026-09-04T06:51:51.309"), déjà "naïf"
+     * LocalDateTime.parse() seul ne gère que le dernier cas ; les deux premiers doivent
+     * d'abord être résolus en Instant/OffsetDateTime puis convertis vers le fuseau serveur.
+     */
+    private LocalDateTime parseFlexibleDateTime(String rawDate)
+    {
+        try {
+            // Cas 1 : format avec suffixe "Z" ou offset explicite (le plus courant, envoyé par le frontend)
+            return java.time.OffsetDateTime.parse(rawDate)
+                    .atZoneSameInstant(ZoneId.systemDefault())
+                    .toLocalDateTime();
+        } catch (DateTimeParseException e) {
+            // Cas 2 : déjà un format "naïf" sans fuseau horaire
+            return LocalDateTime.parse(rawDate);
+        }
+    }
 
     @Transactional
     public InvoiceDTO.InvoiceResponse createInvoice(UUID shopId, InvoiceDTO.CreateInvoiceRequest request)
@@ -74,7 +100,32 @@ public class InvoiceService
         ShopEntity shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new ResourceNotFoundException("Boutique introuvable"));
 
-        InvoiceEntity invoice = InvoiceEntity.builder()
+        // Validation de la date locale si fournie (pour la synchronisation hors ligne)
+        // Le frontend envoie la date via `new Date().toISOString()`, qui produit un format
+        // ISO 8601 en UTC avec suffixe "Z" (ex: "2026-09-04T06:51:51.309Z"). LocalDateTime.parse()
+        // seul rejette ce suffixe car LocalDateTime ne porte pas d'information de fuseau horaire.
+        // On parse donc explicitement en Instant (UTC), puis on convertit vers le fuseau serveur.
+        LocalDateTime createdAt = null;
+        if (request.getLocalCreatedAt() != null) {
+            try {
+                createdAt = parseFlexibleDateTime(request.getLocalCreatedAt());
+                LocalDateTime now = LocalDateTime.now();
+
+                // Rejeter les dates dans le futur (tolérance 1 heure pour désynchronisation horaire)
+                if (createdAt.isAfter(now.plusHours(1))) {
+                    throw new IllegalArgumentException("La date de création ne peut pas être dans le futur");
+                }
+
+                // Rejeter les dates trop anciennes (plus de 30 jours)
+                if (createdAt.isBefore(now.minusDays(30))) {
+                    throw new IllegalArgumentException("La date de création est trop ancienne (plus de 30 jours)");
+                }
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Format de date invalide: " + request.getLocalCreatedAt());
+            }
+        }
+
+        InvoiceEntity.InvoiceEntityBuilder builder = InvoiceEntity.builder()
                 .invoiceNumber(generateInvoiceNumber(shop))
                 .shop(shop)
                 .customerName(request.getCustomerName())
@@ -82,21 +133,73 @@ public class InvoiceService
                 .discountAmount(BigDecimal.ZERO)
                 .totalAmount(BigDecimal.ZERO)
                 .totalMargin(BigDecimal.ZERO)
-                .status(InvoiceStatusEnum.OPEN)
-                .build();
+                .status(InvoiceStatusEnum.OPEN);
+
+        // Utiliser la date locale si fournie, sinon laisser @CreatedDate s'appliquer
+        if (createdAt != null) {
+            builder.createdAt(createdAt);
+        }
+
+        // Utiliser l'ID utilisateur fourni (pour la synchronisation)
+        if (request.getSoldBy() != null) {
+            builder.soldBy(request.getSoldBy());
+        }
+
+        InvoiceEntity invoice = builder.build();
 
         InvoiceEntity saved = invoiceRepository.save(invoice);
         return toResponse(saved, List.of());
     }
 
     @Transactional
-    public InvoiceDTO.InvoiceResponse addLine(UUID invoiceId, InvoiceDTO.AddLineRequest request)
+    public InvoiceDTO.InvoiceResponse addLine(UUID invoiceId, InvoiceDTO.AddLineRequest request, AuthPrincipal principal)
     {
         InvoiceEntity invoice = getEditableInvoice(invoiceId);
 
         ProductEntity product = productsRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
 
+        // Vérifier si le produit existe déjà sur la facture
+        SaleEntity existingLine = salesRepository.findByInvoice_IdAndProduct_Id(invoiceId, request.getProductId());
+
+        if (existingLine != null) {
+            // Le produit existe déjà : additionner la quantité
+            BigDecimal oldQuantity = existingLine.getQuantity();
+            BigDecimal newQuantity = oldQuantity.add(request.getQuantity());
+
+            if (product.getStockQuantity().compareTo(request.getQuantity()) < 0) {
+                throw new IllegalArgumentException("Stock insuffisant pour " + product.getName());
+            }
+
+            existingLine.setQuantity(newQuantity);
+
+            // Recalculer les montants de la ligne
+            BigDecimal lineSubtotal = product.getSellingPrice().multiply(newQuantity);
+            BigDecimal lineDiscount = computeDiscount(lineSubtotal, existingLine.getDiscountType() != null ? existingLine.getDiscountType().name() : null, existingLine.getDiscountValue());
+            BigDecimal lineTotal = lineSubtotal.subtract(lineDiscount);
+            BigDecimal lineMargin = product.getSellingPrice().subtract(product.getPurchasePrice())
+                    .multiply(newQuantity).subtract(lineDiscount);
+
+            existingLine.setLineSubtotal(lineSubtotal);
+            existingLine.setDiscountAmount(lineDiscount);
+            existingLine.setTotalPrice(lineTotal);
+            existingLine.setMargin(lineMargin);
+
+            salesRepository.save(existingLine);
+
+            product.setStockQuantity(product.getStockQuantity().subtract(request.getQuantity()));
+            productsRepository.save(product);
+
+            recomputeInvoiceTotals(invoice);
+
+            // Enregistrer l'historique
+            String details = String.format("Produit: %s, Quantité: %s -> %s", product.getName(), oldQuantity, newQuantity);
+            recordHistory(invoice, InvoiceHistoryActionType.ADD_LINE, details, principal);
+
+            return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
+        }
+
+        // Nouvelle ligne : créer comme avant
         if (product.getStockQuantity().compareTo(request.getQuantity()) < 0) {
             throw new IllegalArgumentException("Stock insuffisant pour " + product.getName());
         }
@@ -127,6 +230,87 @@ public class InvoiceService
         productsRepository.save(product);
 
         recomputeInvoiceTotals(invoice);
+
+        // Enregistrer l'historique
+        String details = String.format("Produit: %s, Quantité: %s", product.getName(), request.getQuantity());
+        recordHistory(invoice, InvoiceHistoryActionType.ADD_LINE, details, principal);
+
+        return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
+    }
+
+    /**
+     * Méthode de compatibilité pour les appels existants sans principal
+     */
+    @Transactional
+    public InvoiceDTO.InvoiceResponse addLine(UUID invoiceId, InvoiceDTO.AddLineRequest request)
+    {
+        return addLine(invoiceId, request, null);
+    }
+
+    /**
+     * Modifie la quantité d'une ligne existante (remplacement, pas addition)
+     */
+    @Transactional
+    public InvoiceDTO.InvoiceResponse modifyLineQuantity(UUID invoiceId, UUID saleId, BigDecimal newQuantity, AuthPrincipal principal)
+    {
+        InvoiceEntity invoice = getEditableInvoice(invoiceId);
+
+        SaleEntity sale = salesRepository.findById(saleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ligne introuvable"));
+
+        if (!sale.getInvoice().getId().equals(invoiceId)) {
+            throw new IllegalArgumentException("Cette ligne n'appartient pas à cette facture");
+        }
+
+        ProductEntity product = sale.getProduct();
+        BigDecimal oldQuantity = sale.getQuantity();
+
+        // Vérifier le stock pour la différence
+        BigDecimal quantityDiff = newQuantity.subtract(oldQuantity);
+        if (quantityDiff.compareTo(BigDecimal.ZERO) > 0) {
+            // On augmente la quantité : vérifier le stock disponible
+            if (product.getStockQuantity().compareTo(quantityDiff) < 0) {
+                throw new IllegalArgumentException("Stock insuffisant pour " + product.getName());
+            }
+        }
+
+        // Mettre à jour la quantité
+        sale.setQuantity(newQuantity);
+
+        // Recalculer les montants de la ligne
+        BigDecimal lineSubtotal = product.getSellingPrice().multiply(newQuantity);
+
+        // Règle : si remise FIXED_AMOUNT, elle ne se recalcule PAS automatiquement
+        BigDecimal lineDiscount;
+        if (sale.getDiscountType() == DiscountTypeEnum.FIXED_AMOUNT && sale.getDiscountValue() != null) {
+            // Remise fixe : rester tel quel
+            lineDiscount = sale.getDiscountValue();
+        } else {
+            // Pourcentage ou aucune remise : recalculer
+            lineDiscount = computeDiscount(lineSubtotal, sale.getDiscountType() != null ? sale.getDiscountType().name() : null, sale.getDiscountValue());
+        }
+
+        BigDecimal lineTotal = lineSubtotal.subtract(lineDiscount);
+        BigDecimal lineMargin = product.getSellingPrice().subtract(product.getPurchasePrice())
+                .multiply(newQuantity).subtract(lineDiscount);
+
+        sale.setLineSubtotal(lineSubtotal);
+        sale.setDiscountAmount(lineDiscount);
+        sale.setTotalPrice(lineTotal);
+        sale.setMargin(lineMargin);
+
+        salesRepository.save(sale);
+
+        // Mettre à jour le stock produit
+        product.setStockQuantity(product.getStockQuantity().subtract(quantityDiff));
+        productsRepository.save(product);
+
+        recomputeInvoiceTotals(invoice);
+
+        // Enregistrer l'historique
+        String details = String.format("Produit: %s, Quantité: %s -> %s", product.getName(), oldQuantity, newQuantity);
+        recordHistory(invoice, InvoiceHistoryActionType.MODIFY_QTY, details, principal);
+
         return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
     }
 
@@ -136,7 +320,7 @@ public class InvoiceService
      * à zéro produit n'a pas de sens métier).
      */
     @Transactional
-    public InvoiceDTO.InvoiceResponse removeLine(UUID invoiceId, UUID saleId, boolean isManagerAction)
+    public InvoiceDTO.InvoiceResponse removeLine(UUID invoiceId, UUID saleId, boolean isManagerAction, AuthPrincipal principal)
     {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable"));
@@ -153,7 +337,27 @@ public class InvoiceService
         product.setStockQuantity(product.getStockQuantity().add(sale.getQuantity()));
         productsRepository.save(product);
 
+        // Récupérer la date d'ajout de la ligne (soldAt) pour le recalcul des recettes
+        LocalDateTime lineAddedDate = sale.getSoldAt();
+        BigDecimal lineTotalPrice = sale.getTotalPrice(); // Montant APRÈS remise
+
         salesRepository.delete(sale);
+
+        // Enregistrer l'historique
+        String details = String.format("Produit: %s, Quantité: %s, Prix après remise: %s", product.getName(), sale.getQuantity(), lineTotalPrice);
+        recordHistory(invoice, InvoiceHistoryActionType.REMOVE_LINE, details, principal);
+
+        // Si la facture était validée et payée en espèces, créer un mouvement de remboursement
+        if (invoice.getStatus() == InvoiceStatusEnum.VALIDATED && "CASH".equalsIgnoreCase(invoice.getPaymentMethod())) {
+            com.sellam.store.cash.services.CashSessionService cashService = org.springframework.web.context.support.WebApplicationContextUtils.getRequiredWebApplicationContext(
+                ((org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()).getRequest().getServletContext()
+             ).getBean(com.sellam.store.cash.services.CashSessionService.class);
+
+             // On utilise le "soldBy" de la facture pour trouver l'utilisateur, ou l'utilisateur courant idéalement, mais on n'a pas le principal dans removeLine.
+             // On va simuler que le gérant (isManagerAction = true) fait l'action
+             UUID personId = UUID.fromString(invoice.getSoldBy());
+             cashService.recordRefund(invoice.getShop().getId(), personId, invoiceId, sale.getTotalPrice());
+        }
 
         List<SaleEntity> remainingLines = salesRepository.findByInvoice_Id(invoiceId);
 
@@ -164,16 +368,88 @@ public class InvoiceService
         }
 
         recomputeInvoiceTotals(invoice);
+
         return toResponse(invoice, remainingLines);
     }
 
+    /**
+     * Méthode de compatibilité pour les appels existants sans principal
+     */
     @Transactional
-    public InvoiceDTO.InvoiceResponse applyInvoiceDiscount(UUID invoiceId, InvoiceDTO.ApplyInvoiceDiscountRequest request)
+    public InvoiceDTO.InvoiceResponse removeLine(UUID invoiceId, UUID saleId, boolean isManagerAction)
+    {
+        return removeLine(invoiceId, saleId, isManagerAction, null);
+    }
+
+    @Transactional
+    public InvoiceDTO.InvoiceResponse applyInvoiceDiscount(UUID invoiceId, InvoiceDTO.ApplyInvoiceDiscountRequest request, AuthPrincipal principal)
     {
         InvoiceEntity invoice = getEditableInvoice(invoiceId);
         invoice.setDiscountType(DiscountTypeEnum.valueOf(request.getDiscountType()));
         invoice.setDiscountValue(request.getDiscountValue());
         recomputeInvoiceTotals(invoice);
+
+        // Enregistrer l'historique
+        String details = String.format("Remise globale: %s %s", request.getDiscountType(), request.getDiscountValue());
+        recordHistory(invoice, InvoiceHistoryActionType.GLOBAL_DISCOUNT, details, principal);
+
+        return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
+    }
+
+    /**
+     * Méthode de compatibilité pour les appels existants sans principal
+     */
+    @Transactional
+    public InvoiceDTO.InvoiceResponse applyInvoiceDiscount(UUID invoiceId, InvoiceDTO.ApplyInvoiceDiscountRequest request)
+    {
+        return applyInvoiceDiscount(invoiceId, request, null);
+    }
+
+    /**
+     * Applique une remise sur une ligne spécifique avec validation de marge négative
+     */
+    @Transactional
+    public InvoiceDTO.InvoiceResponse applyLineDiscount(UUID invoiceId, UUID saleId, InvoiceDTO.ApplyLineDiscountRequest request, AuthPrincipal principal)
+    {
+        InvoiceEntity invoice = getEditableInvoice(invoiceId);
+
+        SaleEntity sale = salesRepository.findById(saleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ligne introuvable"));
+
+        if (!sale.getInvoice().getId().equals(invoiceId)) {
+            throw new IllegalArgumentException("Cette ligne n'appartient pas à cette facture");
+        }
+
+        ProductEntity product = sale.getProduct();
+
+        // Calculer la nouvelle marge avec la remise
+        BigDecimal lineSubtotal = product.getSellingPrice().multiply(sale.getQuantity());
+        BigDecimal lineDiscount = computeDiscount(lineSubtotal, request.getDiscountType(), request.getDiscountValue());
+        BigDecimal lineTotal = lineSubtotal.subtract(lineDiscount);
+        BigDecimal lineMargin = product.getSellingPrice().subtract(product.getPurchasePrice())
+                .multiply(sale.getQuantity()).subtract(lineDiscount);
+
+        // Validation : avertissement si marge négative (vente à perte)
+        if (lineMargin.compareTo(BigDecimal.ZERO) < 0) {
+            log.warn("[APPLY_LINE_DISCOUNT] Avertissement : marge négative détectée pour produit {} (vente à perte)", product.getName());
+            // On ne bloque pas, juste un avertissement
+        }
+
+        // Mettre à jour la ligne
+        sale.setDiscountType(DiscountTypeEnum.valueOf(request.getDiscountType()));
+        sale.setDiscountValue(request.getDiscountValue());
+        sale.setDiscountAmount(lineDiscount);
+        sale.setTotalPrice(lineTotal);
+        sale.setMargin(lineMargin);
+
+        salesRepository.save(sale);
+
+        recomputeInvoiceTotals(invoice);
+
+        // Enregistrer l'historique
+        String details = String.format("Produit: %s, Remise: %s %s", product.getName(), request.getDiscountType(), request.getDiscountValue());
+        recordHistory(invoice, InvoiceHistoryActionType.DISCOUNT, details, principal);
+
         return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
     }
 
@@ -210,34 +486,39 @@ public class InvoiceService
 
         invoice.setStatus(InvoiceStatusEnum.VALIDATED);
         invoice.setValidatedByName(validatorName);
-        
-        if (principal != null) {
+
+        // Ne remplacer soldBy que s'il n'est pas déjà défini (cas de synchronisation hors ligne)
+        if (principal != null && invoice.getSoldBy() == null) {
             invoice.setSoldBy(principal.getId().toString());
         }
         
         InvoiceEntity saved = invoiceRepository.save(invoice);
+        
+        // Enregistrement automatique de la vente en caisse si paiement en espèces
+        if ("CASH".equalsIgnoreCase(saved.getPaymentMethod())) {
+             com.sellam.store.cash.services.CashSessionService cashService = org.springframework.web.context.support.WebApplicationContextUtils.getRequiredWebApplicationContext(
+                ((org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()).getRequest().getServletContext()
+             ).getBean(com.sellam.store.cash.services.CashSessionService.class);
+             
+             UUID personId = principal != null ? principal.getId() : saved.getShop().getId(); // fallback si pas de principal
+             if (principal != null) {
+                 cashService.recordCashSale(saved.getShop().getId(), personId, saved);
+             }
+        }
+        
         return toResponse(saved, lines);
     }
 
     /**
-     * Résout le nom à afficher pour le validateur de la facture, selon
-     * qu'il s'agit d'un employé (UserEntity) ou du compte propriétaire
-     * (AccountEntity, sans ligne dans la table users).
+     * Résout le nom à afficher pour le validateur de la facture.
      */
     private String resolveValidatorName(AuthPrincipal principal)
     {
         if (principal == null) {
             return "Sync";
         }
-        if ("ACCOUNT".equals(principal.getUserType()))
-        {
-            return accountRepository.findById(principal.getId())
-                    .map(AccountEntity::getName)
-                    .orElse("Compte propriétaire");
-        }
-
-        return usersRepository.findById(principal.getId())
-                .map(UserEntity::getName)
+        return personRepository.findById(principal.getId())
+                .map(PersonEntity::getName)
                 .orElse("Employé");
     }
 
@@ -583,6 +864,32 @@ public class InvoiceService
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable"));
         return toResponse(invoice, salesRepository.findByInvoice_Id(invoiceId));
+    }
+
+    public UUID getInvoiceShopId(UUID invoiceId)
+    {
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable"));
+        return invoice.getShop().getId();
+    }
+
+    /**
+     * Enregistre une entrée d'historique pour une modification de facture
+     */
+    private void recordHistory(InvoiceEntity invoice, InvoiceHistoryActionType actionType, String details, AuthPrincipal principal)
+    {
+        String actorName = resolveValidatorName(principal);
+        String actorId = principal != null ? principal.getId().toString() : null;
+
+        InvoiceHistoryEntity history = InvoiceHistoryEntity.builder()
+                .invoice(invoice)
+                .actionType(actionType)
+                .actorName(actorName)
+                .actorId(actorId)
+                .details(details)
+                .build();
+
+        invoiceHistoryRepository.save(history);
     }
 
 }

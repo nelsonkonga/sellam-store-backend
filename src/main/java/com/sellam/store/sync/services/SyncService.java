@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -14,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sellam.store.invoices.dto.InvoiceDTO;
 import com.sellam.store.invoices.services.InvoiceService;
 import com.sellam.store.sync.dto.SyncDTO;
+import com.sellam.store.identity.repositories.PersonRepository;
+import com.sellam.store.identity.repositories.ShopMembershipRepository;
 
 @Service
 public class SyncService
@@ -23,11 +26,16 @@ public class SyncService
 
     private final InvoiceService invoiceService;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+    private final PersonRepository personRepository;
+    private final ShopMembershipRepository shopMembershipRepository;
 
-    public SyncService(InvoiceService invoiceService, org.springframework.transaction.support.TransactionTemplate transactionTemplate)
+    public SyncService(InvoiceService invoiceService, org.springframework.transaction.support.TransactionTemplate transactionTemplate,
+                      PersonRepository personRepository, ShopMembershipRepository shopMembershipRepository)
     {
         this.invoiceService = invoiceService;
         this.transactionTemplate = transactionTemplate;
+        this.personRepository = personRepository;
+        this.shopMembershipRepository = shopMembershipRepository;
     }
 
     public SyncDTO.SyncResponse processSync(SyncDTO.SyncRequest request)
@@ -80,12 +88,16 @@ public class SyncService
         transactionTemplate.execute(status -> {
             UUID shopId = UUID.fromString(action.getShopId());
             Map<String, Object> payload = action.getPayload();
-            
+
             String customerName = (String) payload.get("customerName");
-            
+            String localCreatedAt = action.getLocalCreatedAt(); // Date réelle de création locale
+            String soldBy = action.getSoldBy(); // ID de l'utilisateur qui a créé la facture
+
             // 1. Create invoice
             InvoiceDTO.CreateInvoiceRequest createReq = InvoiceDTO.CreateInvoiceRequest.builder()
                     .customerName(customerName)
+                    .localCreatedAt(localCreatedAt) // Passer la date locale
+                    .soldBy(soldBy) // Passer l'ID utilisateur
                     .build();
             InvoiceDTO.InvoiceResponse invoice = invoiceService.createInvoice(shopId, createReq);
             
@@ -108,7 +120,7 @@ public class SyncService
                         lineReq.discountType((String) line.get("lineDiscountType"));
                     }
                     
-                    invoiceService.addLine(invoice.getId(), lineReq.build());
+                    invoiceService.addLine(invoice.getId(), lineReq.build(), null);
                 }
             }
             
@@ -121,17 +133,56 @@ public class SyncService
                         .discountValue(discountAmt)
                         .discountType(discountType)
                         .build();
-                invoiceService.applyInvoiceDiscount(invoice.getId(), discountReq);
+                invoiceService.applyInvoiceDiscount(invoice.getId(), discountReq, null);
             }
-            
+
             String paymentMethod = (String) payload.get("paymentMethod");
-            
+
             // 4. Validate invoice
             InvoiceDTO.ValidateInvoiceRequest validateReq = InvoiceDTO.ValidateInvoiceRequest.builder()
                     .customerName(customerName)
                     .paymentMethod(paymentMethod)
                     .build();
-            invoiceService.validateInvoice(invoice.getId(), validateReq, null);
+
+            // Créer un faux AuthPrincipal avec l'ID utilisateur réel pour attribution correcte
+            com.sellam.store.common.security.AuthPrincipal fakePrincipal = null;
+            if (soldBy != null) {
+                try {
+                    UUID personId = UUID.fromString(soldBy);
+
+                    // VALIDATION : Vérifier que la personne existe et a accès à la boutique
+                    Optional<com.sellam.store.identity.models.PersonEntity> personOpt = personRepository.findById(personId);
+                    if (personOpt.isEmpty()) {
+                        log.warn("[SYNC] Person introuvable pour soldBy={}", soldBy);
+                        throw new IllegalArgumentException("Person introuvable: " + soldBy);
+                    }
+
+                    com.sellam.store.identity.models.PersonEntity person = personOpt.get();
+                    Optional<com.sellam.store.identity.models.ShopMembershipEntity> membershipOpt = shopMembershipRepository.findActiveMembership(personId, shopId);
+                    if (membershipOpt.isEmpty()) {
+                        log.warn("[SYNC] Person {} n'a pas de membership actif pour la boutique {}", personId, shopId);
+                        throw new IllegalArgumentException("Person n'a pas accès à cette boutique");
+                    }
+
+                    // Récupérer le nom réel de la personne pour l'historique
+                    String personName = person.getName() != null ? person.getName() : "Unknown";
+
+                    fakePrincipal = com.sellam.store.common.security.AuthPrincipal.builder()
+                            .id(personId)
+                            .name(personName)
+                            .userType("PERSON") // Type correct pour le nouveau modèle
+                            .shopId(shopId)
+                            .build();
+                } catch (IllegalArgumentException e) {
+                    log.warn("[SYNC] Validation soldBy échouée: {}", e.getMessage());
+                    throw e; // Rejeter la synchronisation si validation échoue
+                } catch (Exception e) {
+                    log.warn("[SYNC] Erreur lors de la validation soldBy={}: {}", soldBy, e.getMessage());
+                    throw new IllegalArgumentException("Format de soldBy invalide");
+                }
+            }
+
+            invoiceService.validateInvoice(invoice.getId(), validateReq, fakePrincipal);
             return null;
         });
     }
@@ -152,7 +203,7 @@ public class SyncService
                     .productId(productId)
                     .quantity(quantity)
                     .build();
-            invoiceService.addLine(invoice.getId(), lineReq);
+            invoiceService.addLine(invoice.getId(), lineReq, null);
 
             invoiceService.validateInvoice(invoice.getId(), null, null);
             return null;

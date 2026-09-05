@@ -1,10 +1,11 @@
 package com.sellam.store.auth;
 
-import com.sellam.store.accounts.models.AccountEntity;
-import com.sellam.store.accounts.repositories.AccountRepository;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.repositories.PersonRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -12,32 +13,38 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
+
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+import java.util.UUID;
 
+/**
+ * Handler OAuth2 adapté au nouveau modèle PersonEntity (Phase 1).
+ * 
+ * Différences avec OAuth2SuccessHandler legacy :
+ * - Utilise PersonRepository au lieu de AccountRepository
+ * - Utilise JwtProvider au lieu de JwtProvider
+ * - Génère des tokens PERSON au lieu de ACCOUNT
+ * - Bloque la création de nouveaux comptes OAuth2 (canary block)
+ * - Redirige vers la page d'erreur OAuth2 si l'enregistrement est bloqué
+ */
+@Slf4j
 @Component
+
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
 {
 
-    private final AccountRepository accountRepository;
-    private final JwtProvider jwtProvider;
+    private final PersonRepository personRepository;
+    private final JwtProvider JwtProvider;
+
+    @Value("${app.registration.blocked:false}")
+    private boolean registrationBlocked;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
-
-    @Value("${app.registration.enabled}")
-    private boolean registrationEnabled;
-
-    // Setters pour les tests
-    public void setFrontendUrl(String frontendUrl) {
-        this.frontendUrl = frontendUrl;
-    }
-
-    public void setRegistrationEnabled(boolean registrationEnabled) {
-        this.registrationEnabled = registrationEnabled;
-    }
 
     @Override
     public void onAuthenticationSuccess(@NonNull HttpServletRequest request,
@@ -58,44 +65,59 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
         String name = oauthUser.getAttribute("name");
         String googleId = oauthUser.getAttribute("sub");
 
-        // Vérifier si le compte existe déjà
-        java.util.Optional<AccountEntity> existingAccount = accountRepository.findByEmail(email);
-        
-        if (existingAccount.isEmpty() && !registrationEnabled)
-        {
-            // BLOCAGE CANARY PHASE 1 : Rediriger vers le frontend avec message d'erreur
-            String errorUrl = frontendUrl + "/oauth-error?error=registration_disabled&message=" 
-                    + URLEncoder.encode("Les nouvelles inscriptions sont temporairement désactivées pour maintenance. Veuillez réessayer ultérieurement.", StandardCharsets.UTF_8);
-            response.sendRedirect(errorUrl);
-            return;
-        }
+        // Chercher une personne existante par email
+        Optional<PersonEntity> existingPerson = personRepository.findByEmail(email);
 
-        AccountEntity account = existingAccount.orElseGet(() -> {
-            AccountEntity newAccount = AccountEntity.builder()
+        if (existingPerson.isEmpty())
+        {
+            // Blocage des nouvelles inscriptions OAuth2 (canary)
+            if (registrationBlocked)
+            {
+                log.warn("OAuth2 registration blocked for email: {}", email);
+                String errorUrl = frontendUrl + "/oauth-error?error=registration_blocked";
+                response.sendRedirect(errorUrl);
+                return;
+            }
+
+            // Créer une nouvelle personne (normalement bloqué en canary)
+            PersonEntity newPerson = PersonEntity.builder()
                     .name(name)
                     .email(email)
                     .emailVerified(true)
                     .oauthProvider("google")
                     .oauthId(googleId)
                     .build();
-            return accountRepository.save(newAccount);
-        });
-
-        if (account.getOauthProvider() == null)
-        {
-            account.setOauthProvider("google");
-            account.setOauthId(googleId);
-            account.setEmailVerified(true);
-            accountRepository.save(account);
+            PersonEntity savedPerson = personRepository.save(newPerson);
+            
+            String token = JwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "PERSON", null, savedPerson.getPhoneNumber());
+            String redirectUrl = buildRedirectUrl(token, savedPerson.getId(), savedPerson.getName(), savedPerson.getEmail(), true);
+            response.sendRedirect(redirectUrl);
+            return;
         }
 
-        String token = jwtProvider.generateToken(account.getId(), "ACCOUNT", null, account.getPhoneNumber());
+        // Personne existante : mettre à jour les infos OAuth2 si nécessaire
+        PersonEntity person = existingPerson.get();
+        
+        if (person.getOauthProvider() == null)
+        {
+            person.setOauthProvider("google");
+            person.setOauthId(googleId);
+            person.setEmailVerified(true);
+            personRepository.save(person);
+        }
 
-        String redirectUrl = frontendUrl + "/oauth-callback?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
-                + "&accountId=" + account.getId()
-                + "&name=" + URLEncoder.encode(account.getName(), StandardCharsets.UTF_8)
-                + "&email=" + URLEncoder.encode(account.getEmail() != null ? account.getEmail() : "", StandardCharsets.UTF_8)
-                + "&emailVerified=" + account.isEmailVerified();
+        String token = JwtProvider.generateToken(person.getId(), person.getName(), "PERSON", null, person.getPhoneNumber());
+        String redirectUrl = buildRedirectUrl(token, person.getId(), person.getName(), person.getEmail(), person.isEmailVerified());
         response.sendRedirect(redirectUrl);
+    }
+
+    private String buildRedirectUrl(String token, UUID personId, String name, String email, boolean emailVerified)
+    {
+        // Utiliser un fragment URL (#) au lieu d'un query parameter (?) pour éviter l'exposition du token dans les logs et l'historique
+        return frontendUrl + "/oauth-callback#token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+                + "&personId=" + personId
+                + "&name=" + URLEncoder.encode(name != null ? name : "", StandardCharsets.UTF_8)
+                + "&email=" + URLEncoder.encode(email != null ? email : "", StandardCharsets.UTF_8)
+                + "&emailVerified=" + emailVerified;
     }
 }

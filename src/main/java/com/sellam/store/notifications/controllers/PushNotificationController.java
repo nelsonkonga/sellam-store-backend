@@ -1,6 +1,7 @@
 package com.sellam.store.notifications.controllers;
+import org.springframework.context.annotation.Profile;
 
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.notifications.models.PushSubscriptionEntity;
 import com.sellam.store.notifications.services.PushNotificationService;
 import com.sellam.store.notifications.services.PushSubscriptionService;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -18,11 +20,12 @@ import java.util.UUID;
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 @Slf4j
+@Profile("!dev & !postgres")
 public class PushNotificationController {
 
     private final PushSubscriptionService pushSubscriptionService;
     private final PushNotificationService pushNotificationService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     @Value("${app.vapid.public-key}")
     private String vapidPublicKey;

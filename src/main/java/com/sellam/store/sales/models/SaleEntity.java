@@ -4,13 +4,14 @@ import com.sellam.store.invoices.models.DiscountTypeEnum;
 import com.sellam.store.invoices.models.InvoiceEntity;
 import com.sellam.store.products.models.ProductEntity;
 import com.sellam.store.shops.models.ShopEntity;
-import com.sellam.store.users.models.UserEntity;
+import com.sellam.store.identity.models.PersonEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
@@ -43,14 +44,17 @@ public class SaleEntity
     @Column(updatable = false)
     private LocalDateTime soldAt;
 
+    @org.springframework.data.annotation.LastModifiedDate
+    private LocalDateTime updatedAt;
+
 
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
     private ProductEntity product;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = true)
-    private UserEntity user;
+    @JoinColumn(name = "person_id", nullable = true)
+    private PersonEntity person;
 
     @ManyToOne
     @JoinColumn(name = "shop_id", nullable = false)

@@ -46,7 +46,6 @@ public class GlobalExceptionHandler
         
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .header("Access-Control-Allow-Origin", "*")
                 .body(response);
     }
 

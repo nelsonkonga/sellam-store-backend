@@ -1,6 +1,6 @@
 package com.sellam.store.saletypes.controllers;
 
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.saletypes.dto.SaleTypeDTO;
 import com.sellam.store.saletypes.services.SaleTypeService;
 import lombok.AllArgsConstructor;
@@ -19,7 +19,7 @@ public class SaleTypeRestController
 {
 
     private final SaleTypeService saleTypeService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     // Lecture des types de vente disponibles : nécessaire à tout employé
     // qui facture, donc pas de restriction de permission au-delà de l'auth.

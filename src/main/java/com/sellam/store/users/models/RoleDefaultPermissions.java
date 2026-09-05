@@ -23,6 +23,7 @@ public final class RoleDefaultPermissions
                     PermissionEnum.DELETE_INVOICE_LINE,
                     PermissionEnum.VALIDATE_INVOICE,
                     PermissionEnum.VIEW_DAILY_BALANCE
+                    // Note: APPLY_LINE_DISCOUNT et APPLY_GLOBAL_DISCOUNT exclus (réservé au MANAGER)
             ),
 
             RoleEnum.SECRETARY, EnumSet.of(

@@ -99,6 +99,7 @@ class ProductsServiceTest {
                 .sellingPrice(BigDecimal.valueOf(200))
                 .stockQuantity(BigDecimal.valueOf(10))
                 .alertThreshold(BigDecimal.valueOf(5))
+                .category("Épicerie")
                 .shopId(shopId)
                 .build();
 
@@ -144,6 +145,7 @@ class ProductsServiceTest {
                 .sellingPrice(BigDecimal.valueOf(200))
                 .stockQuantity(BigDecimal.valueOf(10))
                 .alertThreshold(BigDecimal.valueOf(5))
+                .category("Épicerie")
                 .shopId(shopId)
                 .build();
 
@@ -162,6 +164,7 @@ class ProductsServiceTest {
                 .sellingPrice(BigDecimal.valueOf(200))
                 .stockQuantity(BigDecimal.valueOf(10))
                 .alertThreshold(BigDecimal.valueOf(5))
+                .category("Épicerie")
                 .shopId(shopId)
                 .build();
 
@@ -233,6 +236,7 @@ class ProductsServiceTest {
                 .saleType(saleType)
                 .sellingPrice(BigDecimal.valueOf(500))
                 .stockQuantity(BigDecimal.valueOf(10))
+                .category("Épicerie")
                 .build();
 
         when(productsRepository.findById(productId)).thenReturn(Optional.of(product));
@@ -245,7 +249,9 @@ class ProductsServiceTest {
                 .stockQuantity(BigDecimal.valueOf(15))
                 .purchasePrice(BigDecimal.valueOf(100))
                 .alertThreshold(BigDecimal.valueOf(5))
+                .category("Épicerie")
                 .saleTypeId(saleTypeId)
+                .shopId(shopId)
                 .build();
 
         ProductsDTO.ProductResponse response = productsService.updateProduct(productId, request);
@@ -268,6 +274,9 @@ class ProductsServiceTest {
                 .purchasePrice(BigDecimal.valueOf(100))
                 .sellingPrice(BigDecimal.valueOf(200))
                 .stockQuantity(BigDecimal.valueOf(10))
+                .alertThreshold(BigDecimal.valueOf(5))
+                .category("Épicerie")
+                .shopId(shopId)
                 .build();
 
         assertThrows(ResourceNotFoundException.class, () -> productsService.updateProduct(productId, request));

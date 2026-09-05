@@ -1,7 +1,7 @@
 package com.sellam.store.invoices.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.invoices.dto.InvoiceDTO;
 import com.sellam.store.invoices.services.InvoiceService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,7 +23,7 @@ public class InvoiceRestController
 {
 
     private final InvoiceService invoiceService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
 
     @PreAuthorize("@sec.can(authentication, 'CREATE_INVOICE')")
     @PostMapping
@@ -38,27 +38,57 @@ public class InvoiceRestController
     @PostMapping("/{id}/lines")
     @ResponseStatus(HttpStatus.OK)
     public InvoiceDTO.InvoiceResponse addLine(@PathVariable UUID id,
-                                              @RequestBody InvoiceDTO.AddLineRequest request)
+                                              @RequestBody InvoiceDTO.AddLineRequest request,
+                                              Authentication authentication)
     {
-        return invoiceService.addLine(id, request);
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.addLine(id, request, principal);
+    }
+
+    @PreAuthorize("@sec.can(authentication, 'EDIT_INVOICE')")
+    @PutMapping("/{id}/lines/{saleId}/quantity")
+    @ResponseStatus(HttpStatus.OK)
+    public InvoiceDTO.InvoiceResponse modifyLineQuantity(@PathVariable UUID id,
+                                                         @PathVariable UUID saleId,
+                                                         @RequestBody InvoiceDTO.ModifyQuantityRequest request,
+                                                         Authentication authentication)
+    {
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.modifyLineQuantity(id, saleId, request.getQuantity(), principal);
+    }
+
+    @PreAuthorize("@sec.can(authentication, 'APPLY_LINE_DISCOUNT')")
+    @PostMapping("/{id}/lines/{saleId}/discount")
+    @ResponseStatus(HttpStatus.OK)
+    public InvoiceDTO.InvoiceResponse applyLineDiscount(@PathVariable UUID id,
+                                                        @PathVariable UUID saleId,
+                                                        @RequestBody InvoiceDTO.ApplyLineDiscountRequest request,
+                                                        Authentication authentication)
+    {
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.applyLineDiscount(id, saleId, request, principal);
     }
 
     @PreAuthorize("@sec.can(authentication, 'DELETE_INVOICE_LINE')")
     @DeleteMapping("/{id}/lines/{saleId}")
     @ResponseStatus(HttpStatus.OK)
     public InvoiceDTO.InvoiceResponse removeLine(@PathVariable UUID id, @PathVariable UUID saleId,
-                                                 @RequestParam(defaultValue = "false") boolean isManagerAction)
+                                                 @RequestParam(defaultValue = "false") boolean isManagerAction,
+                                                 Authentication authentication)
     {
-        return invoiceService.removeLine(id, saleId, isManagerAction);
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.removeLine(id, saleId, isManagerAction, principal);
     }
 
-    @PreAuthorize("@sec.can(authentication, 'EDIT_INVOICE')")
+    @PreAuthorize("@sec.can(authentication, 'APPLY_GLOBAL_DISCOUNT')")
     @PostMapping("/{id}/discount")
     @ResponseStatus(HttpStatus.OK)
     public InvoiceDTO.InvoiceResponse applyDiscount(@PathVariable UUID id,
-                                                    @RequestBody InvoiceDTO.ApplyInvoiceDiscountRequest request)
+                                                    @RequestBody InvoiceDTO.ApplyInvoiceDiscountRequest request,
+                                                    Authentication authentication)
     {
-        return invoiceService.applyInvoiceDiscount(id, request);
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return invoiceService.applyInvoiceDiscount(id, request, principal);
     }
 
     @PreAuthorize("@sec.can(authentication, 'VALIDATE_INVOICE')")
@@ -72,27 +102,34 @@ public class InvoiceRestController
         return invoiceService.validateInvoice(id, request, principal);
     }
 
-    // Pas de restriction de permission métier : consulter/imprimer une facture déjà
-    // créée est une action de lecture peu sensible, laissée à authenticated() de base.
+    // Vérification d'accès à la boutique requise pour consulter/imprimer une facture
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public byte[] pdf(@PathVariable UUID id, HttpServletResponse response)
+    public byte[] pdf(@PathVariable UUID id, HttpServletResponse response, Authentication authentication)
     {
+        UUID shopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, String.format("inline; filename=facture-%s.pdf", id.toString()));
         return invoiceService.generatePdf(id);
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public List<InvoiceDTO.InvoiceResponse> list(@RequestParam UUID shopId)
+    public List<InvoiceDTO.InvoiceResponse> list(@RequestParam UUID shopId, Authentication authentication)
     {
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         return invoiceService.listInvoices(shopId);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public InvoiceDTO.InvoiceResponse getInvoice(@PathVariable UUID id)
+    public InvoiceDTO.InvoiceResponse getInvoice(@PathVariable UUID id, Authentication authentication)
     {
+        UUID shopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         return invoiceService.getInvoice(id);
     }
 }

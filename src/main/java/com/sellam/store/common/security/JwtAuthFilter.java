@@ -1,9 +1,11 @@
 package com.sellam.store.common.security;
 
 import com.sellam.store.auth.JwtProvider;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.models.ShopMembershipEntity;
+import com.sellam.store.identity.repositories.PersonRepository;
+import com.sellam.store.identity.repositories.ShopMembershipRepository;
 import com.sellam.store.users.models.PermissionEnum;
-import com.sellam.store.users.models.UserEntity;
-import com.sellam.store.users.repositories.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,19 +26,32 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Filtre JWT adaptÃ© au nouveau modÃ¨le PersonEntity + ShopMembershipEntity.
+ * 
+ * Changements par rapport Ã  l'ancien JwtAuthFilter :
+ * - RÃ©sout les permissions via ShopMembershipEntity au lieu de UserEntity
+ * - Supporte le multi-boutique : permissions calculÃ©es par membership active
+ * - userType "PERSON" pour le nouveau modÃ¨le
+ * - Maintient la compatibilitÃ© avec "ACCOUNT" (PERM_ALL) et "USER" (permissions)
+ */
 @Component
+
 @Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter
 {
     private final JwtProvider jwtProvider;
-    private final UserRepository userRepository;
+    private final PersonRepository personRepository;
+    private final ShopMembershipRepository shopMembershipRepository;
 
-    public JwtAuthFilter(JwtProvider jwtProvider, UserRepository userRepository)
+    public JwtAuthFilter(JwtProvider jwtProvider, PersonRepository personRepository, ShopMembershipRepository shopMembershipRepository)
     {
         this.jwtProvider = jwtProvider;
-        this.userRepository = userRepository;
+        this.personRepository = personRepository;
+        this.shopMembershipRepository = shopMembershipRepository;
     }
 
     @Override
@@ -45,6 +61,14 @@ public class JwtAuthFilter extends OncePerRequestFilter
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException
     {
+        // Skip JWT filter for OAuth2 endpoints to avoid interference
+        String requestURI = request.getRequestURI();
+        if (requestURI.startsWith("/login/oauth2/"))
+        {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer "))
@@ -78,13 +102,7 @@ public class JwtAuthFilter extends OncePerRequestFilter
         }
         catch (Exception e)
         {
-            // Un token malformé, une base de données momentanément indisponible,
-            // ou toute autre erreur de résolution ne doit jamais casser la chaîne
-            // de filtres : on laisse simplement la requête continuer non authentifiée
-            // (elle sera rejetée en 401/403 plus loin par Spring Security si la
-            // route l'exige). Sans ce catch, une exception ici produirait une 500
-            // opaque au lieu d'un refus d'accès normal.
-            log.warn("Échec de résolution de l'authentification JWT : {}", e.getMessage());
+            log.warn("Ã‰chec de rÃ©solution de l'authentification JWT : {}", e.getMessage());
             SecurityContextHolder.clearContext();
         }
 
@@ -92,36 +110,68 @@ public class JwtAuthFilter extends OncePerRequestFilter
     }
 
     /**
-     * Résout les autorités effectives du principal :
-     * un ACCOUNT (gérant propriétaire) a accès total (bypass)
-     * un USER (employé) a les permissions calculées à partir de son rôle + overrides
-
-     * Chargé à chaque requête pour refléter immédiatement tout changement
-     * de permissions fait par le gérant, sans que l'employé ait à se reconnecter.
+     * RÃ©sout les autoritÃ©s effectives du principal :
+     *
+     * CAS 1 : ACCOUNT (ancien) â†’ accÃ¨s total (PERM_ALL)
+     * CAS 2 : PERSON avec systemRole PLATFORM_ADMIN â†’ accÃ¨s total (PERM_ALL)
+     * CAS 3 : PERSON avec shopId â†’ permissions scopÃ©es Ã  cette boutique
+     * CAS 4 : PERSON sans shopId â†’ permissions neutres uniquement (profil, liste boutiques)
+     *
+     * RÃ¨gle pour le cas sans shopId :
+     * - Juste aprÃ¨s login : accÃ¨s neutre uniquement (pas d'endpoints mÃ©tier)
+     * - Ancien gÃ©rant : doit d'abord sÃ©lectionner une boutique
+     * - Permet : profil, liste boutiques, changement contact
+     * - Refuse : tous les endpoints mÃ©tier scoped
      */
     private List<GrantedAuthority> resolveAuthorities(AuthPrincipal principal)
     {
+        // CAS 1 : Ancien type ACCOUNT â†’ accÃ¨s total
         if ("ACCOUNT".equals(principal.getUserType()))
         {
             return List.of(new SimpleGrantedAuthority("PERM_ALL"));
         }
 
-        if ("USER".equals(principal.getUserType()))
+        // CAS 2 : Nouveau type PERSON avec systemRole PLATFORM_ADMIN â†’ accÃ¨s total
+        if ("PERSON".equals(principal.getUserType()))
         {
-            Optional<UserEntity> userOpt = userRepository.findById(principal.getId());
-            if (userOpt.isEmpty())
+            Optional<PersonEntity> personOpt = personRepository.findById(principal.getId());
+            if (personOpt.isPresent())
+            {
+                PersonEntity person = personOpt.get();
+                if (person.getSystemRole() != null
+                        && person.getSystemRole().name().equals("PLATFORM_ADMIN"))
+                {
+                    return List.of(new SimpleGrantedAuthority("PERM_ALL"));
+                }
+            }
+        }
+
+        // CAS 3 : PERSON/USER avec shopId â†’ permissions scopÃ©es Ã  cette boutique
+        if (principal.getShopId() != null)
+        {
+            Optional<PersonEntity> personOpt = personRepository.findById(principal.getId());
+            if (personOpt.isEmpty())
             {
                 return Collections.emptyList();
             }
 
-            UserEntity user = userOpt.get();
-            Set<PermissionEnum> effective = user.getEffectivePermissions();
+            Optional<ShopMembershipEntity> membershipOpt =
+                    shopMembershipRepository.findActiveMembership(principal.getId(), principal.getShopId());
 
-            return effective.stream()
-                    .map(p -> (GrantedAuthority) new SimpleGrantedAuthority(p.name()))
-                    .collect(Collectors.toList());
+            if (membershipOpt.isPresent())
+            {
+                ShopMembershipEntity membership = membershipOpt.get();
+                Set<PermissionEnum> permissions = membership.getEffectivePermissions();
+
+                return permissions.stream()
+                        .map(p -> (GrantedAuthority) new SimpleGrantedAuthority(p.name()))
+                        .collect(Collectors.toList());
+            }
         }
 
-        return Collections.emptyList();
+        // CAS 4 : Sans shopId â†’ permissions neutres uniquement
+        // Permet l'accÃ¨s aux endpoints non scopÃ©s : profil, liste boutiques, changement contact
+        // Refuse l'accÃ¨s aux endpoints mÃ©tier scoped (produits, ventes, factures, etc.)
+        return List.of(new SimpleGrantedAuthority("NEUTRAL_ACCESS"));
     }
 }

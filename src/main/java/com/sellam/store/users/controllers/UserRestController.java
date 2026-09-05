@@ -1,7 +1,7 @@
 package com.sellam.store.users.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.shops.repositories.ShopRepository;
 import com.sellam.store.users.dto.UserDTO;
 import com.sellam.store.users.services.UserService;
@@ -37,7 +37,8 @@ public class UserRestController
 
     private final UserService userService;
     private final ShopRepository shopRepository;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
+    private final com.sellam.store.identity.services.IdentityService identityService;
 
     @PreAuthorize("@sec.isAccountOwner(authentication)")
     @PostMapping("/shop/{shopId}")
@@ -181,7 +182,15 @@ public class UserRestController
 
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
 
-        boolean ownsShop = shopRepository.existsByIdAndAccount_Id(resourceShopId, principal.getId());
+        boolean ownsShop = false;
+        
+        if ("ACCOUNT".equals(principal.getUserType())) {
+            // For backward compatibility: check if a legacy account is tied to this shop via a MANAGER membership
+            ownsShop = identityService.hasAccessToShop(principal.getId(), resourceShopId);
+        } else {
+             ownsShop = identityService.hasAccessToShop(principal.getId(), resourceShopId);
+        }
+        
         if (!ownsShop)
         {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Accès refusé : vous n'avez pas accès à cette boutique");

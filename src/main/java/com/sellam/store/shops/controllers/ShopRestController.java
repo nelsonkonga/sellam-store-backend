@@ -1,7 +1,7 @@
 package com.sellam.store.shops.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
-import com.sellam.store.common.security.ShopAccessGuard;
+import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.shops.dto.ShopDTO;
 import com.sellam.store.shops.services.ShopService;
 import com.sellam.store.shops.services.SupabaseStorageService;
@@ -30,7 +30,7 @@ public class ShopRestController
 {
 
     private final ShopService shopService;
-    private final ShopAccessGuard shopAccessGuard;
+    private final IShopAccessGuard shopAccessGuard;
     private final SupabaseStorageService supabaseStorageService;
 
     @PreAuthorize("@sec.isAccountOwner(authentication)")
@@ -52,11 +52,11 @@ public class ShopRestController
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
 
-        if ("USER".equals(principal.getUserType()))
-        {
-            return List.of(shopService.getShopById(principal.getShopId()));
-        }
-
+        // Note : on ne fait plus confiance à principal.getShopId() (issu du JWT)
+        // pour résoudre les boutiques d'un USER. Ce claim peut devenir obsolète
+        // (membership révoquée/supprimée entre-temps) sans que le token expire,
+        // ce qui provoquait un IllegalArgumentException sur un id null.
+        // On résout systématiquement via les memberships actives en base.
         return shopService.listShops(principal.getId());
     }
 

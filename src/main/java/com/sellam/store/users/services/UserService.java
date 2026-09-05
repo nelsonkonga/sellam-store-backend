@@ -1,13 +1,18 @@
 package com.sellam.store.users.services;
 
 import com.sellam.store.common.exception.ResourceNotFoundException;
+import com.sellam.store.identity.models.LegacyEntityType;
+import com.sellam.store.identity.models.LegacyIdMapping;
+import com.sellam.store.identity.models.PersonEntity;
+import com.sellam.store.identity.models.ShopMembershipEntity;
+import com.sellam.store.identity.repositories.LegacyIdMappingRepository;
+import com.sellam.store.identity.repositories.PersonRepository;
+import com.sellam.store.identity.repositories.ShopMembershipRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
 import com.sellam.store.users.dto.UserDTO;
 import com.sellam.store.users.models.PermissionEnum;
 import com.sellam.store.users.models.RoleDefaultPermissions;
-import com.sellam.store.users.models.UserEntity;
-import com.sellam.store.users.repositories.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,56 +29,79 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
-public class UserService
-{
+public class UserService {
 
-    private final UserRepository userRepository;
+    private final PersonRepository personRepository;
+    private final ShopMembershipRepository shopMembershipRepository;
     private final ShopRepository shopRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LegacyIdMappingRepository legacyIdMappingRepository;
 
-
-    public UUID getShopIdByUserId(UUID userId)
-    {
-        return userRepository.findShopIdByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable"));
+    public UUID getShopIdByUserId(UUID userId) {
+        List<UUID> shopIds = shopMembershipRepository.findActiveShopIdsByPersonId(userId);
+        if (shopIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable ou aucune boutique active");
+        }
+        return shopIds.get(0);
     }
 
     @Transactional
     public UserDTO.UserResponse createUser(UUID shopId, UserDTO.CreateUserRequest request) {
-        if (userRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent())
-        {
+        if (personRepository.findByPhoneNumber(request.getPhoneNumber()).isPresent()) {
             throw new IllegalArgumentException("Ce numéro de téléphone est déjà utilisé par un autre employé");
         }
 
         ShopEntity shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new ResourceNotFoundException("Boutique introuvable"));
 
-        UserEntity user = UserEntity.builder()
+        PersonEntity person = PersonEntity.builder()
                 .name(request.getName())
                 .phoneNumber(request.getPhoneNumber())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
-                .active(true)
-                .shop(shop)
                 .build();
 
-        UserEntity saved = userRepository.save(user);
-        return toResponse(saved);
+        PersonEntity savedPerson = personRepository.save(person);
+
+        // Écrit le mapping legacy USER, comme AuthService.register le fait pour
+        // un ACCOUNT. Sans cette ligne, AuthService.login() n'a aucun moyen
+        // fiable de reconnaître cette personne comme employé : elle retombait
+        // sur une déduction par memberships, fragile et incohérente avec le
+        // cas ACCOUNT (voir AuthService.login).
+        legacyIdMappingRepository.save(
+                LegacyIdMapping.builder()
+                        .legacyId(savedPerson.getId())
+                        .personId(savedPerson.getId())
+                        .legacyType(LegacyEntityType.USER)
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
+
+        ShopMembershipEntity membership = ShopMembershipEntity.builder()
+                .person(savedPerson)
+                .shop(shop)
+                .role(request.getRole())
+                .active(true)
+                .build();
+
+        ShopMembershipEntity savedMembership = shopMembershipRepository.save(membership);
+
+        return toResponse(savedPerson, savedMembership);
     }
 
-    public List<UserDTO.UserResponse> listUsers(UUID shopId)
-    {
-        return userRepository.findByShop_Id(shopId)
+    public List<UserDTO.UserResponse> listUsers(UUID shopId) {
+        return shopMembershipRepository.findByShopId(shopId)
                 .stream()
-                .map(this::toResponse)
+                .map(m -> toResponse(m.getPerson(), m))
                 .collect(Collectors.toList());
     }
 
-    public UserDTO.UserResponse getUser(UUID userId)
-    {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
-        return toResponse(user);
+    public UserDTO.UserResponse getUser(UUID userId) {
+        List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
+        if (memberships.isEmpty()) {
+            throw new ResourceNotFoundException("Employé introuvable");
+        }
+        ShopMembershipEntity m = memberships.get(0);
+        return toResponse(m.getPerson(), m);
     }
 
     /**
@@ -80,19 +109,21 @@ public class UserService
      * par défaut (selon son rôle), ses overrides actuels, et le résultat
      * effectif combiné.
      */
-    public UserDTO.PermissionsResponse getPermissions(UUID userId)
-    {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
+    public UserDTO.PermissionsResponse getPermissions(UUID userId) {
+        List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
+        if (memberships.isEmpty()) {
+            throw new ResourceNotFoundException("Employé introuvable");
+        }
+        ShopMembershipEntity m = memberships.get(0);
 
-        Set<PermissionEnum> defaults = RoleDefaultPermissions.forRole(user.getRole());
-        Set<PermissionEnum> effective = user.getEffectivePermissions();
+        Set<PermissionEnum> defaults = RoleDefaultPermissions.forRole(m.getRole());
+        Set<PermissionEnum> effective = m.getEffectivePermissions();
 
         return UserDTO.PermissionsResponse.builder()
-                .role(user.getRole() != null ? user.getRole().name() : null)
+                .role(m.getRole() != null ? m.getRole().name() : null)
                 .defaultPermissions(toStringSet(defaults))
-                .grantedOverrides(toStringSet(user.getGrantedOverrides()))
-                .revokedOverrides(toStringSet(user.getRevokedOverrides()))
+                .grantedOverrides(toStringSet(m.getGrantedOverrides()))
+                .revokedOverrides(toStringSet(m.getRevokedOverrides()))
                 .effectivePermissions(toStringSet(effective))
                 .build();
     }
@@ -103,122 +134,119 @@ public class UserService
      * pas un delta.
      */
     @Transactional
-    public UserDTO.PermissionsResponse updatePermissions(UUID userId, UserDTO.UpdatePermissionsRequest request)
-    {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
+    public UserDTO.PermissionsResponse updatePermissions(UUID userId, UserDTO.UpdatePermissionsRequest request) {
+        List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
+        if (memberships.isEmpty()) {
+            throw new ResourceNotFoundException("Employé introuvable");
+        }
+        ShopMembershipEntity m = memberships.get(0);
 
-        user.setGrantedOverrides(toPermissionSet(request.getGrantedOverrides()));
-        user.setRevokedOverrides(toPermissionSet(request.getRevokedOverrides()));
+        m.setGrantedOverrides(toPermissionSet(request.getGrantedOverrides()));
+        m.setRevokedOverrides(toPermissionSet(request.getRevokedOverrides()));
 
-        userRepository.save(user);
+        shopMembershipRepository.save(m);
 
         return getPermissions(userId);
     }
 
     @Transactional
-    public UserDTO.UserResponse updateUser(UUID userId, UserDTO.UpdateUserRequest request)
-    {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
-
-        if (request.getName() != null)
-        {
-            user.setName(request.getName());
+    public UserDTO.UserResponse updateUser(UUID userId, UserDTO.UpdateUserRequest request) {
+        List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
+        if (memberships.isEmpty()) {
+            throw new ResourceNotFoundException("Employé introuvable");
         }
-        if (request.getPhoneNumber() != null)
-        {
-            userRepository.findByPhoneNumber(request.getPhoneNumber())
+        ShopMembershipEntity m = memberships.get(0);
+        PersonEntity person = m.getPerson();
+
+        if (request.getName() != null) {
+            person.setName(request.getName());
+        }
+        if (request.getPhoneNumber() != null) {
+            personRepository.findByPhoneNumber(request.getPhoneNumber())
                     .filter(existing -> !existing.getId().equals(userId))
-                    .ifPresent(existing ->
-                    {
+                    .ifPresent(existing -> {
                         throw new IllegalArgumentException("Ce numéro de téléphone est déjà utilisé");
                     });
-            user.setPhoneNumber(request.getPhoneNumber());
+            person.setPhoneNumber(request.getPhoneNumber());
         }
-        if (request.getRole() != null)
-        {
-            user.setRole(request.getRole());
+        if (request.getRole() != null) {
+            m.setRole(request.getRole());
         }
 
-        return toResponse(userRepository.save(user));
+        personRepository.save(person);
+        shopMembershipRepository.save(m);
+
+        return toResponse(person, m);
     }
 
     @Transactional
-    public void changePassword(UUID userId, UserDTO.ChangePasswordRequest request)
-    {
-        UserEntity user = userRepository.findById(userId)
+    public void changePassword(UUID userId, UserDTO.ChangePasswordRequest request) {
+        PersonEntity person = personRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
+        person.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        personRepository.save(person);
     }
 
     @Transactional
-    public UserDTO.UserResponse toggleActive(UUID userId)
-    {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
-        user.setActive(!user.isActive());
-        return toResponse(userRepository.save(user));
+    public UserDTO.UserResponse toggleActive(UUID userId) {
+        List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
+        if (memberships.isEmpty()) {
+            throw new ResourceNotFoundException("Employé introuvable");
+        }
+        ShopMembershipEntity m = memberships.get(0);
+        m.setActive(!m.isActive());
+        shopMembershipRepository.save(m);
+        return toResponse(m.getPerson(), m);
     }
 
     @Transactional
-    public void deleteUser(UUID userId)
-    {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
-        userRepository.delete(user);
+    public void deleteUser(UUID userId) {
+        List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
+        if (!memberships.isEmpty()) {
+            shopMembershipRepository.deleteAll(memberships);
+        }
+        personRepository.findById(userId).ifPresent(personRepository::delete);
     }
 
-    private Set<String> toStringSet(Set<PermissionEnum> permissions)
-    {
-        if (permissions == null)
-        {
+    private Set<String> toStringSet(Set<PermissionEnum> permissions) {
+        if (permissions == null) {
             return Set.of();
         }
         return permissions.stream().map(Enum::name).collect(java.util.stream.Collectors.toSet());
     }
 
-    private Set<PermissionEnum> toPermissionSet(Set<String> names)
-    {
-        if (names == null)
-        {
+    private Set<PermissionEnum> toPermissionSet(Set<String> names) {
+        if (names == null) {
             return new HashSet<>();
         }
         Set<PermissionEnum> result = new HashSet<>();
-        for (String name : names)
-        {
-            try
-            {
+        for (String name : names) {
+            try {
                 result.add(PermissionEnum.valueOf(name));
-            }
-            catch (IllegalArgumentException e)
-            {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Permission inconnue : " + name);
             }
         }
         return result;
     }
 
-    private UserDTO.UserResponse toResponse(UserEntity user)
-    {
+    private UserDTO.UserResponse toResponse(PersonEntity person, ShopMembershipEntity membership) {
         return UserDTO.UserResponse.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .phoneNumber(user.getPhoneNumber())
-                .profilePictureUrl(user.getProfilePictureUrl())
-                .role(user.getRole())
-                .active(user.isActive())
-                .shopId(user.getShop().getId())
-                .shopName(user.getShop().getName())
+                .id(person.getId())
+                .name(person.getName())
+                .phoneNumber(person.getPhoneNumber())
+                .profilePictureUrl(person.getProfilePictureUrl())
+                .role(membership.getRole())
+                .active(membership.isActive())
+                .shopId(membership.getShop().getId())
+                .shopName(membership.getShop().getName())
                 .build();
     }
 
-    public void updateProfilePictureUrl(UUID userId, String profilePictureUrl)
-    {
-        UserEntity user = userRepository.findById(userId)
+    public void updateProfilePictureUrl(UUID userId, String profilePictureUrl) {
+        PersonEntity person = personRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur Introuvable"));
-        user.setProfilePictureUrl(profilePictureUrl);
-        userRepository.save(user);
+        person.setProfilePictureUrl(profilePictureUrl);
+        personRepository.save(person);
     }
 }

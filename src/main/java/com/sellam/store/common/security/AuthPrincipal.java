@@ -13,6 +13,7 @@ import java.util.UUID;
 @Builder
 public class AuthPrincipal {
     private UUID id;
+    private String name; // Nom de l'utilisateur
     private String userType; // "ACCOUNT" ou "USER"
     private UUID shopId; // nullable, présent uniquement si userType == "USER"
     private String phoneNumber;

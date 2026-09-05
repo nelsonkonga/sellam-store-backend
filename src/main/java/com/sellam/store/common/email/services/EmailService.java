@@ -6,8 +6,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.util.ByteArrayDataSource;
 
 @Service
 public class EmailService {
@@ -68,14 +73,41 @@ public class EmailService {
     public void sendBalanceReminderEmail(String toEmail, String shopName) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
-        message.setSubject("Rappel : Heure de faire le bilan - " + shopName);
+        message.setSubject("Rappel : Clôturez votre caisse - " + shopName);
         message.setText(
                 "Bonjour,\n\n" +
-                        "Il est temps de faire le bilan pour votre boutique " + shopName + ".\n\n" +
-                        "Accédez à Sellam pour enregistrer vos ventes du jour :\n" +
-                        frontendUrl + "/daily-balance\n\n" +
+                        "Il est temps de clôturer votre session de caisse pour la boutique " + shopName + ".\n\n" +
+                        "Accédez à Sellam pour vérifier et clôturer votre caisse :\n" +
+                        frontendUrl + "/cash\n\n" +
                         "L'équipe Sellam"
         );
         sendMailSafely(message, "balance reminder email for " + shopName + " to " + toEmail);
+    }
+
+    @Async
+    public void sendReportByEmail(String toEmail, String reportName, byte[] pdfContent) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(toEmail);
+            helper.setSubject("Rapport Sellam : " + reportName);
+            helper.setText(
+                    "Bonjour,\n\n" +
+                    "Veuillez trouver ci-joint le rapport " + reportName + " au format PDF.\n\n" +
+                    "Cordialement,\n" +
+                    "L'équipe Sellam",
+                    false
+            );
+
+            helper.addAttachment(reportName + ".pdf", new ByteArrayDataSource(pdfContent, "application/pdf"));
+
+            mailSender.send(message);
+            log.info("Report email sent successfully: {} to {}", reportName, toEmail);
+        } catch (MessagingException e) {
+            log.error("Failed to send report email ({} to {}): {}", reportName, toEmail, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Unexpected error sending report email ({} to {}): {}", reportName, toEmail, e.getMessage(), e);
+        }
     }
 }

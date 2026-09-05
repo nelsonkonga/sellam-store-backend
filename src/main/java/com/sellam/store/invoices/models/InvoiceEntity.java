@@ -56,6 +56,6 @@ public class InvoiceEntity
     private String soldBy; // ID or Name of the employee/user who made the sale
 
     @CreatedDate
-    @Column(updatable = false)
+    @Column(updatable = true) // Permettre la mise à jour pour la synchronisation hors ligne
     private LocalDateTime createdAt;
 }

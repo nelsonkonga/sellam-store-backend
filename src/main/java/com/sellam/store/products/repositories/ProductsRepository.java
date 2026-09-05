@@ -18,12 +18,18 @@ public interface ProductsRepository extends JpaRepository<ProductEntity, UUID>
 
     ProductEntity findByShop_IdAndNameAndCategory(UUID shopId, String name, String category);
 
-    @org.springframework.data.jpa.repository.Query("SELECT p, COALESCE(SUM(s.quantity), 0) as totalSold " +
-           "FROM ProductEntity p LEFT JOIN SaleEntity s ON s.product = p AND s.status = 'CONFIRMED' " +
-           "WHERE p.shop.id = :shopId " +
-           "GROUP BY p " +
-           "ORDER BY totalSold DESC")
-    List<Object[]> findTopSellingProductsByShopId(@org.springframework.data.repository.query.Param("shopId") UUID shopId);
+@org.springframework.data.jpa.repository.Query(
+    "SELECT p, " +
+    "COALESCE(SUM(s.margin), 0) as totalMargin, " +
+    "COALESCE(SUM(s.quantity), 0) as totalSold " +
+    "FROM ProductEntity p " +
+    "LEFT JOIN SaleEntity s ON s.product = p AND s.status = 'CONFIRMED' " +
+    "WHERE p.shop.id = :shopId " +
+    "GROUP BY p " +
+    "ORDER BY totalMargin DESC"
+)
+List<Object[]> findTopSellingProductsByShopId(@org.springframework.data.repository.query.Param("shopId") UUID shopId);
+
 
     @org.springframework.data.jpa.repository.Query("SELECT p.name, p.stockQuantity, MAX(s.soldAt) " +
            "FROM ProductEntity p LEFT JOIN SaleEntity s ON s.product = p AND s.status = 'CONFIRMED' " +
