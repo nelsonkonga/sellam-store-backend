@@ -48,19 +48,23 @@ public class ReportsService {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
 
-        List<InvoiceEntity> invoices = invoiceRepository.findByShop_IdAndStatusAndCreatedAtBetween(
-                shopId, InvoiceStatusEnum.VALIDATED, start, end);
+        List<Object[]> rows = invoiceRepository.getSummaryReportData(shopId, start, end);
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        BigDecimal totalMargin = BigDecimal.ZERO;
+        int count = 0;
+        BigDecimal avgBasket = BigDecimal.ZERO;
 
-        BigDecimal totalRevenue = invoices.stream()
-                .map(InvoiceEntity::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalMargin = invoices.stream()
-                .map(i -> i.getTotalMargin() != null ? i.getTotalMargin() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        int count = invoices.size();
-        BigDecimal avgBasket = count > 0 ? totalRevenue.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        if (rows != null && !rows.isEmpty() && rows.get(0) != null) {
+            Object[] row = rows.get(0);
+            totalRevenue = row[0] != null ? (BigDecimal) row[0] : BigDecimal.ZERO;
+            totalMargin = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+            count = row[2] != null ? ((Number) row[2]).intValue() : 0;
+            if (row[3] != null) {
+                avgBasket = (row[3] instanceof BigDecimal)
+                        ? (BigDecimal) row[3]
+                        : BigDecimal.valueOf(((Number) row[3]).doubleValue()).setScale(2, RoundingMode.HALF_UP);
+            }
+        }
 
         return ReportsDTO.SummaryReport.builder()
                 .totalRevenue(totalRevenue)
@@ -95,32 +99,16 @@ public class ReportsService {
 
 
     public List<ReportsDTO.CashReliabilityItem> getCashReliability(UUID shopId, LocalDate startDate, LocalDate endDate) {
-        // Le contrôle de caisse se fait désormais par session (par caisse, par employé),
-        // et non plus via un bilan boutique global unique par jour. On reconstitue donc
-        // ce rapport en agrégeant les écarts de toutes les sessions clôturées dans la
-        // plage demandée, toutes caisses confondues, regroupées par jour de clôture.
-        List<CashRegisterSessionEntity> sessions = cashSessionRepository.findByShopIdOrderByOpenedAtDesc(shopId);
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
 
-        return sessions.stream()
-                .filter(s -> s.getStatus() == CashSessionStatusEnum.CLOSED)
-                .filter(s -> s.getClosedAt() != null)
-                .filter(s -> {
-                    LocalDate closedDate = s.getClosedAt().toLocalDate();
-                    return !closedDate.isBefore(startDate) && !closedDate.isAfter(endDate);
-                })
-                .collect(Collectors.groupingBy(
-                        s -> s.getClosedAt().toLocalDate(),
-                        Collectors.reducing(BigDecimal.ZERO,
-                                s -> s.getDiscrepancy() != null ? s.getDiscrepancy() : BigDecimal.ZERO,
-                                BigDecimal::add)
-                ))
-                .entrySet().stream()
-                .sorted(java.util.Map.Entry.comparingByKey())
-                .map(entry -> ReportsDTO.CashReliabilityItem.builder()
-                        .date(entry.getKey())
-                        .discrepancy(entry.getValue())
-                        .build())
-                .collect(Collectors.toList());
+        List<Object[]> rows = cashSessionRepository.getDailyDiscrepancies(shopId, start, end);
+
+        return rows.stream().map(row -> ReportsDTO.CashReliabilityItem.builder()
+                .date((LocalDate) row[0])
+                .discrepancy(row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO)
+                .build()
+        ).collect(Collectors.toList());
     }
 
     public List<ReportsDTO.NegativeMarginSaleItem> getNegativeMarginSales(UUID shopId, LocalDate startDate, LocalDate endDate) {
@@ -264,22 +252,15 @@ public class ReportsService {
      * dans des produits qui ne bougent pas depuis 30+ jours.
      */
     public ReportsDTO.DormantStockValue getDormantStockValue(UUID shopId) {
-        List<Object[]> items = productsRepository.findDeadStock(shopId);
-        BigDecimal totalValue = BigDecimal.ZERO;
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(30);
+        List<Object[]> rows = productsRepository.getDormantStockSummary(shopId, cutoffDate);
         int count = 0;
+        BigDecimal totalValue = BigDecimal.ZERO;
 
-        for (Object[] row : items) {
-            BigDecimal stock = (BigDecimal) row[1];
-            LocalDateTime lastSale = (LocalDateTime) row[2];
-            boolean isDormant = lastSale == null
-                    || java.time.temporal.ChronoUnit.DAYS.between(lastSale, LocalDateTime.now()) > 30;
-
-            if (isDormant && stock != null && stock.compareTo(BigDecimal.ZERO) > 0) {
-                // On a besoin du prix d'achat pour calculer la valeur bloquée
-                // En l'absence, on utilise le stock brut (= quantité) comme indicateur
-                totalValue = totalValue.add(stock);
-                count++;
-            }
+        if (rows != null && !rows.isEmpty() && rows.get(0) != null) {
+            Object[] row = rows.get(0);
+            count = row[0] != null ? ((Number) row[0]).intValue() : 0;
+            totalValue = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
         }
 
         return ReportsDTO.DormantStockValue.builder()

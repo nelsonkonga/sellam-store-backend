@@ -530,12 +530,15 @@ public class InvoiceService
 
     private void recomputeInvoiceTotals(InvoiceEntity invoice)
     {
-        List<SaleEntity> lines = salesRepository.findByInvoice_Id(invoice.getId());
+        List<Object[]> totals = salesRepository.computeInvoiceTotals(invoice.getId());
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal marginSum = BigDecimal.ZERO;
 
-        BigDecimal subtotal = lines.stream().map(SaleEntity::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal marginSum = lines.stream().map(SaleEntity::getMargin)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totals != null && !totals.isEmpty() && totals.get(0) != null) {
+            Object[] row = totals.get(0);
+            subtotal = row[0] != null ? (BigDecimal) row[0] : BigDecimal.ZERO;
+            marginSum = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+        }
 
         BigDecimal invoiceDiscount = computeDiscount(subtotal,
                 invoice.getDiscountType() != null ? invoice.getDiscountType().name() : null,
@@ -575,7 +578,13 @@ public class InvoiceService
         return String.format("F-%d-%04d", LocalDate.now().getYear(), counter.getLastNumber());
     }
 
-    private InvoiceDTO.InvoiceResponse toResponse(InvoiceEntity invoice, List<SaleEntity> lines)
+    public InvoiceDTO.InvoiceResponse toResponse(InvoiceEntity invoice)
+    {
+        List<SaleEntity> lines = invoice.getLines() != null ? invoice.getLines() : salesRepository.findByInvoice_Id(invoice.getId());
+        return toResponse(invoice, lines);
+    }
+
+    public InvoiceDTO.InvoiceResponse toResponse(InvoiceEntity invoice, List<SaleEntity> lines)
     {
         List<InvoiceDTO.LineResponse> lineResponses = lines.stream()
                 .map(s -> InvoiceDTO.LineResponse.builder()

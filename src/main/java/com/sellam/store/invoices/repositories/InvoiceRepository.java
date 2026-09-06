@@ -20,6 +20,22 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, UUID>
             LocalDateTime end
             );
 
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COALESCE(SUM(i.totalAmount), 0),
+               COALESCE(SUM(i.totalMargin), 0),
+               COUNT(i.id),
+               COALESCE(AVG(i.totalAmount), 0)
+        FROM InvoiceEntity i
+        WHERE i.shop.id = :shopId
+          AND i.status = com.sellam.store.invoices.models.InvoiceStatusEnum.VALIDATED
+          AND i.createdAt BETWEEN :start AND :end
+    """)
+    List<Object[]> getSummaryReportData(
+            @org.springframework.data.repository.query.Param("shopId") UUID shopId,
+            @org.springframework.data.repository.query.Param("start") LocalDateTime start,
+            @org.springframework.data.repository.query.Param("end") LocalDateTime end
+    );
+
     @org.springframework.data.jpa.repository.Query("SELECT i.paymentMethod, SUM(i.totalAmount), COUNT(i.id) FROM InvoiceEntity i WHERE i.shop.id = :shopId AND i.status = 'VALIDATED' AND i.createdAt BETWEEN :start AND :end GROUP BY i.paymentMethod")
     List<Object[]> getPaymentMethodPerformance(
             @org.springframework.data.repository.query.Param("shopId") UUID shopId,
@@ -46,5 +62,13 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, UUID>
             @org.springframework.data.repository.query.Param("shopId") UUID shopId,
             @org.springframework.data.repository.query.Param("start") LocalDateTime start,
             @org.springframework.data.repository.query.Param("end") LocalDateTime end
+    );
+
+    @org.springframework.data.jpa.repository.Query("SELECT i FROM InvoiceEntity i WHERE i.shop.id = :shopId AND i.status = com.sellam.store.invoices.models.InvoiceStatusEnum.VALIDATED AND i.createdAt BETWEEN :start AND :end ORDER BY i.createdAt DESC")
+    List<InvoiceEntity> findTodayInvoices(
+            @org.springframework.data.repository.query.Param("shopId") UUID shopId,
+            @org.springframework.data.repository.query.Param("start") LocalDateTime start,
+            @org.springframework.data.repository.query.Param("end") LocalDateTime end,
+            org.springframework.data.domain.Pageable pageable
     );
 }

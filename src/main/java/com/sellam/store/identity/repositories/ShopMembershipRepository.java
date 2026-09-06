@@ -24,4 +24,7 @@ public interface ShopMembershipRepository extends JpaRepository<ShopMembershipEn
 
     @Query("SELECT sm FROM ShopMembershipEntity sm WHERE sm.person.id = :personId AND sm.shop.id = :shopId AND sm.active = true")
     Optional<ShopMembershipEntity> findActiveMembership(@Param("personId") UUID personId, @Param("shopId") UUID shopId);
+
+    @Query("SELECT COUNT(sm) FROM ShopMembershipEntity sm WHERE sm.shop.id = :shopId AND sm.active = true")
+    long countActiveMembersByShopId(@Param("shopId") UUID shopId);
 }

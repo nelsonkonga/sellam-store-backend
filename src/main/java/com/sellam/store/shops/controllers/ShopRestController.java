@@ -60,6 +60,14 @@ public class ShopRestController
         return shopService.listShops(principal.getId());
     }
 
+    @GetMapping("/summaries")
+    @ResponseStatus(HttpStatus.OK)
+    public List<ShopDTO.ShopSummaryResponse> listShopsSummaries(Authentication authentication)
+    {
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        return shopService.listShopsSummaries(principal.getId());
+    }
+
     @PreAuthorize("@sec.can(authentication, 'MANAGE_SHOP_SETTINGS')")
     @PatchMapping("/{id}/settings")
     @ResponseStatus(HttpStatus.OK)

@@ -506,16 +506,9 @@ public class CashSessionService {
                 CashSessionStatusEnum.PENDING_HANDOVER_CLOSURE
         );
 
-        // Find all active sessions across all registers
-        List<CashRegisterEntity> allRegisters = registerRepository.findAll();
-        for (CashRegisterEntity register : allRegisters) {
-            for (CashSessionStatusEnum status : toClose) {
-                List<CashRegisterSessionEntity> sessions =
-                        sessionRepository.findByRegisterIdAndStatus(register.getId(), status);
-                for (CashRegisterSessionEntity session : sessions) {
-                    autoCloseSession(session);
-                }
-            }
+        List<CashRegisterSessionEntity> sessions = sessionRepository.findByStatusIn(toClose);
+        for (CashRegisterSessionEntity session : sessions) {
+            autoCloseSession(session);
         }
     }
 

@@ -36,4 +36,31 @@ List<Object[]> findTopSellingProductsByShopId(@org.springframework.data.reposito
            "WHERE p.shop.id = :shopId AND p.stockQuantity > 0 " +
            "GROUP BY p.name, p.stockQuantity")
     List<Object[]> findDeadStock(@org.springframework.data.repository.query.Param("shopId") UUID shopId);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p.id), COALESCE(SUM(p.stockQuantity), 0)
+        FROM ProductEntity p
+        WHERE p.shop.id = :shopId
+          AND p.stockQuantity > 0
+          AND (
+              NOT EXISTS (
+                  SELECT 1 FROM SaleEntity s
+                  WHERE s.product = p AND s.status = 'CONFIRMED'
+              )
+              OR (
+                  SELECT MAX(s.soldAt) FROM SaleEntity s
+                  WHERE s.product = p AND s.status = 'CONFIRMED'
+              ) < :cutoffDate
+          )
+    """)
+    List<Object[]> getDormantStockSummary(
+            @org.springframework.data.repository.query.Param("shopId") UUID shopId,
+            @org.springframework.data.repository.query.Param("cutoffDate") java.time.LocalDateTime cutoffDate
+    );
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(p) FROM ProductEntity p WHERE p.shop.id = :shopId AND p.stockQuantity <= p.alertThreshold")
+    long countCriticalStock(@org.springframework.data.repository.query.Param("shopId") UUID shopId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM ProductEntity p WHERE p.shop.id = :shopId AND p.stockQuantity <= p.alertThreshold ORDER BY p.stockQuantity ASC")
+    List<ProductEntity> findCriticalStockProducts(@org.springframework.data.repository.query.Param("shopId") UUID shopId, org.springframework.data.domain.Pageable pageable);
 }

@@ -197,4 +197,28 @@ class CashSessionServiceTest {
             m.getAmount().compareTo(BigDecimal.valueOf(5000)) == 0
         ));
     }
+
+    @Test
+    void testAutoCloseEndOfDayUsesSingleBatchQuery() {
+        CashRegisterSessionEntity openSession = CashRegisterSessionEntity.builder()
+                .id(UUID.randomUUID())
+                .register(register)
+                .status(CashSessionStatusEnum.OPEN)
+                .openingCashAmount(BigDecimal.valueOf(10000))
+                .build();
+
+        when(sessionRepository.findByStatusIn(anyList()))
+                .thenReturn(List.of(openSession));
+        when(movementRepository.computeNetMovements(openSession.getId()))
+                .thenReturn(BigDecimal.valueOf(5000));
+
+        cashSessionService.autoCloseEndOfDay();
+
+        verify(sessionRepository, times(1)).findByStatusIn(anyList());
+        verify(registerRepository, never()).findAll();
+        verify(sessionRepository, times(1)).save(argThat(s ->
+                s.getStatus() == CashSessionStatusEnum.CLOSED_BY_SYSTEM &&
+                s.getClosingComputedAmount().compareTo(BigDecimal.valueOf(15000)) == 0
+        ));
+    }
 }

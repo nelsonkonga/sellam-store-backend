@@ -48,7 +48,7 @@ public class BalanceNotificationScheduler {
         LocalTime now = LocalTime.now();
 
         List<BalanceSettingsEntity> enabledSettingsForToday = balanceSettingsRepository
-                .findByDayOfWeekAndEnabled(todayDayOfWeek, true);
+                .findActiveSettingsForTodayAndNow(todayDayOfWeek, now);
 
         for (BalanceSettingsEntity setting : enabledSettingsForToday) {
             try {

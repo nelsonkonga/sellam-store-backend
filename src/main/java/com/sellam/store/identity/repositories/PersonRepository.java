@@ -19,4 +19,8 @@ public interface PersonRepository extends JpaRepository<PersonEntity, UUID>
     Optional<PersonEntity> findByResetToken(String token);
 
     Optional<PersonEntity> findByOauthProviderAndOauthId(String provider, String oauthId);
+
+    Optional<PersonEntity> findByReferralCode(String referralCode);
+
+    Boolean existsByReferralCode(String referralCode);
 }

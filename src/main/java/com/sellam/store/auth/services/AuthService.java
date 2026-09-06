@@ -12,11 +12,13 @@ import com.sellam.store.identity.repositories.ShopMembershipRepository;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
 import com.sellam.store.users.models.RoleEnum;
+import com.sellam.store.referrals.services.ReferralService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 
 import java.util.Set;
@@ -46,6 +48,7 @@ public class AuthService
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final ReferralService referralService;
 
     private List<String> buildPhoneLookupCandidates(String phoneNumber)
     {
@@ -168,6 +171,11 @@ public class AuthService
 
         PersonEntity person = personBuilder.build();
         PersonEntity savedPerson = personRepository.save(person);
+
+        if (request.getReferralCode() != null && !request.getReferralCode().isBlank())
+        {
+            referralService.linkReferral(savedPerson.getId(), request.getReferralCode());
+        }
 
         // CrÃ©er le mapping legacy (pour compatibilitÃ©)
         // Comme c'est un nouveau compte, on le mappe comme ACCOUNT par dÃ©faut

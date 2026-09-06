@@ -26,6 +26,8 @@ public class AuthDTO
 
         @jakarta.validation.constraints.Email(message = "Format d'email invalide")
         private String email;
+
+        private String referralCode;
     }
 
     @Data

@@ -15,6 +15,9 @@ public interface SalesRepository extends JpaRepository<SaleEntity, UUID>
     List<SaleEntity> findByInvoice_Id(UUID invoiceId);
     SaleEntity findByInvoice_IdAndProduct_Id(UUID invoiceId, UUID productId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(s.totalPrice), 0), COALESCE(SUM(s.margin), 0) FROM SaleEntity s WHERE s.invoice.id = :invoiceId")
+    List<Object[]> computeInvoiceTotals(@org.springframework.data.repository.query.Param("invoiceId") UUID invoiceId);
+
     @org.springframework.data.jpa.repository.Query("SELECT s FROM SaleEntity s WHERE s.shop.id = :shopId AND s.margin < 0 AND s.status = 'CONFIRMED' AND s.soldAt BETWEEN :start AND :end ORDER BY s.soldAt DESC")
     List<SaleEntity> findNegativeMarginSales(
             @org.springframework.data.repository.query.Param("shopId") UUID shopId,

@@ -82,10 +82,13 @@ public class PersonEntity
     // Email verification - conservé depuis AccountEntity
     @Builder.Default
     @Column(name = "email_verified")
-    private boolean emailVerified = false;
+    private Boolean emailVerified = false;
 
     @Column(name = "verification_token")
     private String verificationToken;
+
+    @Column(name = "referral_code", unique = true)
+    private String referralCode;
 
     @Column(name = "verification_token_expires_at")
     private LocalDateTime verificationTokenExpiresAt;
@@ -100,4 +103,8 @@ public class PersonEntity
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    public boolean isEmailVerified() {
+        return Boolean.TRUE.equals(this.emailVerified);
+    }
 }

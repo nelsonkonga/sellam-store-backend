@@ -2,6 +2,8 @@ package com.sellam.store.common.config;
 
 import com.sellam.store.auth.OAuth2SuccessHandler;
 import com.sellam.store.common.security.JwtAuthFilter;
+import com.sellam.store.subscriptions.repositories.SubscriptionRepository;
+import com.sellam.store.subscriptions.security.SubscriptionAccessFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -54,10 +56,13 @@ public class SecurityConfig
     @Value("${app.cors.allowed-origins:http://localhost:5173,https://sellam-store.vercel.app}")
     private String[] allowedOrigins;
 
-    public SecurityConfig(ObjectProvider<JwtAuthFilter> jwtAuthFilterProvider, @Lazy OAuth2SuccessHandler OAuth2SuccessHandler)
+    private final SubscriptionRepository subscriptionRepository;
+
+    public SecurityConfig(ObjectProvider<JwtAuthFilter> jwtAuthFilterProvider, @Lazy OAuth2SuccessHandler OAuth2SuccessHandler, SubscriptionRepository subscriptionRepository)
     {
         this.jwtAuthFilterProvider = jwtAuthFilterProvider;
         this.OAuth2SuccessHandler = OAuth2SuccessHandler;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     private JwtAuthFilter getJwtAuthFilter()
@@ -96,6 +101,7 @@ public class SecurityConfig
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/notifications/push/**").permitAll()
+                        .requestMatchers("/api/payments/cinetpay/notify").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

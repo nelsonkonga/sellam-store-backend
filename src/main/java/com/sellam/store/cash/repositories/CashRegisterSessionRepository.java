@@ -50,4 +50,27 @@ public interface CashRegisterSessionRepository extends JpaRepository<CashRegiste
      * Sessions PENDING_HANDOVER_CLOSURE pour une caisse donnée.
      */
     List<CashRegisterSessionEntity> findByRegisterIdAndStatus(UUID registerId, CashSessionStatusEnum status);
+
+    /**
+     * Recherche de sessions par statuts (pour la clôture de fin de journée sans boucle N+1).
+     */
+    List<CashRegisterSessionEntity> findByStatusIn(List<CashSessionStatusEnum> statuses);
+
+    /**
+     * Agrège les écarts de caisse constatés par jour pour toutes les sessions fermées d'une boutique.
+     */
+    @Query("""
+        SELECT CAST(s.closedAt AS LocalDate), SUM(COALESCE(s.discrepancy, 0))
+        FROM CashRegisterSessionEntity s
+        WHERE s.register.shop.id = :shopId
+          AND s.status = com.sellam.store.cash.models.CashSessionStatusEnum.CLOSED
+          AND s.closedAt BETWEEN :start AND :end
+        GROUP BY CAST(s.closedAt AS LocalDate)
+        ORDER BY CAST(s.closedAt AS LocalDate) ASC
+    """)
+    List<Object[]> getDailyDiscrepancies(
+            @Param("shopId") UUID shopId,
+            @Param("start") java.time.LocalDateTime start,
+            @Param("end") java.time.LocalDateTime end
+    );
 }

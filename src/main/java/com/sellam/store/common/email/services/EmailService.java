@@ -110,4 +110,71 @@ public class EmailService {
             log.error("Unexpected error sending report email ({} to {}): {}", reportName, toEmail, e.getMessage(), e);
         }
     }
+
+
+    @Async
+    public void sendSubscriptionTrialEndingEmail(String toEmail, String shopName)
+    {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Votre essai gratuit se termine bientôt - " + shopName);
+        message.setText(
+                "Bonjour,\n\n" +
+                        "L'essai gratuit de votre boutique " + shopName + " sur Sellam se termine bientôt.\n\n" +
+                        "Abonnez-vous dès maintenant pour continuer à utiliser Sellam sans interruption :\n" +
+                        frontendUrl + "/subscription\n\n" +
+                        "L'équipe Sellam"
+        );
+        sendMailSafely(message, "subscription trial ending email for " + shopName + " to " + toEmail);
+    }
+
+    @Async
+    public void sendSubscriptionPastDueEmail(String toEmail, String shopName)
+    {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Abonnement expiré - " + shopName);
+        message.setText(
+                "Bonjour,\n\n" +
+                        "L'abonnement de votre boutique " + shopName + " a expiré.\n\n" +
+                        "Renouvelez-le rapidement pour éviter le blocage de votre accès :\n" +
+                        frontendUrl + "/subscription\n\n" +
+                        "L'équipe Sellam"
+        );
+        sendMailSafely(message, "subscription past due email for " + shopName + " to " + toEmail);
+    }
+
+    @Async
+    public void sendSubscriptionExpiredEmail(String toEmail, String shopName)
+    {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Accès bloqué - " + shopName);
+        message.setText(
+                "Bonjour,\n\n" +
+                        "L'accès à votre boutique " + shopName + " sur Sellam est maintenant bloqué " +
+                        "(essai ou abonnement expiré).\n\n" +
+                        "Abonnez-vous pour rétablir l'accès immédiatement :\n" +
+                        frontendUrl + "/subscription\n\n" +
+                        "L'équipe Sellam"
+        );
+        sendMailSafely(message, "subscription expired email for " + shopName + " to " + toEmail);
+    }
+
+    @Async
+    public void sendReferralRewardChoiceEmail(String toEmail, java.util.UUID rewardId)
+    {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Récompense de parrainage disponible sur Sellam 🎉");
+        message.setText(
+                "Bonjour,\n\n" +
+                        "Bonne nouvelle : un de vos filleuls vient de s'abonner à Sellam !\n\n" +
+                        "Comme vous gérez plusieurs boutiques, choisissez celle qui recevra vos jours " +
+                        "bonus en vous connectant à l'application :\n" +
+                        frontendUrl + "/referrals\n\n" +
+                        "L'équipe Sellam"
+        );
+        sendMailSafely(message, "referral reward choice email (reward " + rewardId + ") to " + toEmail);
+    }
 }
