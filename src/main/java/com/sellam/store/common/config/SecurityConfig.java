@@ -53,7 +53,7 @@ public class SecurityConfig
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173,https://sellam-store.vercel.app, https://sellam.store}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173,https://sellam-store.vercel.app,https://sellam.store}")
     private String[] allowedOrigins;
 
     private final SubscriptionRepository subscriptionRepository;
