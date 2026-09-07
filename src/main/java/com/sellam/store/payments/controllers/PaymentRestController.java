@@ -3,23 +3,44 @@ package com.sellam.store.payments.controllers;
 import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.payments.dto.PaymentDTO;
 import com.sellam.store.payments.services.PaymentService;
+import com.sellam.store.payments.dto.ManualPaymentInfoResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
 @RestController
-@AllArgsConstructor
 public class PaymentRestController
 {
     private final PaymentService paymentService;
     private final IShopAccessGuard shopAccessGuard;
+
+    @Value("${app.manual-payment.mobile-money-number}")
+    private String manualPaymentNumber;
+
+    @Value("${app.manual-payment.mobile-money-holder-name}")
+    private String manualPaymentHolderName;
+
+    @Value("${app.manual-payment.mobile-money-operator}")
+    private String manualPaymentOperator;
+
+    @Value("${app.manual-payment.support-contact-url:/support/tickets/new}")
+    private String manualPaymentSupportUrl;
+
+    @Value("${app.subscription.plan-amount-xaf}")
+    private int planAmountXaf;
+
+    // Constructeur explicite pour injecter uniquement les services et ignorer les @Value
+    public PaymentRestController(PaymentService paymentService, IShopAccessGuard shopAccessGuard) {
+        this.paymentService = paymentService;
+        this.shopAccessGuard = shopAccessGuard;
+    }
 
     @PostMapping("/api/shops/{shopId}/subscription/payment/initiate")
     @ResponseStatus(HttpStatus.OK)
@@ -29,6 +50,19 @@ public class PaymentRestController
     {
         shopAccessGuard.requireShopAccess(authentication, shopId);
         return paymentService.initiatePayment(shopId);
+    }
+
+    @GetMapping("/api/payments/manual-payment-info")
+    @ResponseStatus(HttpStatus.OK)
+    public ManualPaymentInfoResponse getManualPaymentInfo()
+    {
+        return ManualPaymentInfoResponse.builder()
+                .mobileMoneyNumber(manualPaymentNumber)
+                .mobileMoneyHolderName(manualPaymentHolderName)
+                .mobileMoneyOperator(manualPaymentOperator)
+                .supportContactUrl(manualPaymentSupportUrl)
+                .planAmountXaf(planAmountXaf)
+                .build();
     }
 
     /**

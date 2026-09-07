@@ -63,6 +63,12 @@ public class PaymentTransactionEntity
     @Column(name = "cinetpay_payment_method")
     private String cinetpayPaymentMethod;
 
+    @Column(name = "manual_payment_reference")
+    private String manualPaymentReference;
+
+    @Column(name = "manual_note", columnDefinition = "TEXT")
+    private String manualNote;
+
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 

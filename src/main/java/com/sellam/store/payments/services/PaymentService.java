@@ -12,6 +12,7 @@ import com.sellam.store.referrals.services.ReferralService;
 import com.sellam.store.shops.models.ShopEntity;
 import com.sellam.store.shops.repositories.ShopRepository;
 import com.sellam.store.subscriptions.services.SubscriptionService;
+import com.sellam.store.payments.exceptions.PaymentProviderUnavailableException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,13 +49,13 @@ public class PaymentService
     private final SubscriptionService subscriptionService;
     private final ReferralService referralService;
 
-    @Value("${app.subscription.plan-amount-xof:5000}")
+    @Value("${app.subscription.plan-amount-xaf}")
     private int planAmount;
 
-    @Value("${cinetpay.site-id:${payment-integration.site-id:dummy-site-id}}")
+    @Value("${cinetpay.site-id:${payment-integration.site-id}}")
     private String siteId;
 
-    @Value("${cinetpay.currency:${payment-integration.currency:XOF}}")
+    @Value("${cinetpay.currency:${payment-integration.currency}}")
     private String currency;
 
     @Transactional
@@ -84,14 +85,26 @@ public class PaymentService
                 .build();
         paymentTransactionRepository.save(transaction);
 
-        PaymentDTO.CinetPayInitResponse initResponse = cinetPayClient.initPayment(
-                transactionId,
-                planAmount,
-                "Abonnement Sellam - " + shop.getName(),
-                payer.getName(),
-                payer.getEmail(),
-                payer.getPhoneNumber()
-        );
+        PaymentDTO.CinetPayInitResponse initResponse;
+        try
+        {
+            initResponse = cinetPayClient.initPayment(
+                    transactionId,
+                    planAmount,
+                    "Abonnement Sellam - " + shop.getName(),
+                    payer.getName(),
+                    payer.getEmail(),
+                    payer.getPhoneNumber()
+            );
+        }
+        catch (Exception e)
+        {
+            log.error("Erreur réseau/API lors de l'appel à CinetPay pour la transaction {}", transactionId, e);
+            transaction.setStatus(PaymentTransactionStatusEnum.FAILED);
+            paymentTransactionRepository.save(transaction);
+            throw new PaymentProviderUnavailableException(
+                    "Le paiement en ligne est momentanément indisponible. Utilisez le paiement manuel ci-dessous.");
+        }
 
         if (initResponse == null || initResponse.getData() == null
                 || !"201".equals(initResponse.getCode()))
@@ -100,7 +113,8 @@ public class PaymentService
                     transactionId, initResponse != null ? initResponse.getMessage() : "réponse nulle");
             transaction.setStatus(PaymentTransactionStatusEnum.FAILED);
             paymentTransactionRepository.save(transaction);
-            throw new IllegalStateException("Impossible d'initialiser le paiement pour le moment. Réessayez plus tard.");
+            throw new PaymentProviderUnavailableException(
+                    "Le paiement en ligne est momentanément indisponible. Utilisez le paiement manuel ci-dessous.");
         }
 
         transaction.setCinetpayPaymentToken(initResponse.getData().getPaymentToken());

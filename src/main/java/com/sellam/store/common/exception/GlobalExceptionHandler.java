@@ -1,5 +1,6 @@
 package com.sellam.store.common.exception;
 
+import com.sellam.store.payments.exceptions.PaymentProviderUnavailableException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -98,6 +99,21 @@ public class GlobalExceptionHandler
                 .build();
         
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(PaymentProviderUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentProviderUnavailable(PaymentProviderUnavailableException ex)
+    {
+        logger.warn("Fournisseur de paiement indisponible : {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .message(ex.getMessage())
+                .error("PAYMENT_PROVIDER_UNAVAILABLE")
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     @ExceptionHandler(Exception.class)

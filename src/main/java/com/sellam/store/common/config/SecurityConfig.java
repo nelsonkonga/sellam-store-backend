@@ -101,7 +101,7 @@ public class SecurityConfig
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/notifications/push/**").permitAll()
-                        .requestMatchers("/api/payments/cinetpay/notify").permitAll()
+                        .requestMatchers("/api/payments/cinetpay/notify", "/api/payments/manual-payment-info").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

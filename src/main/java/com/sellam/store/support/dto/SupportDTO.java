@@ -5,6 +5,7 @@ import com.sellam.store.support.models.TicketPriorityEnum;
 import com.sellam.store.support.models.TicketStatusEnum;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +14,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 public class SupportDTO {
 
@@ -34,6 +36,11 @@ public class SupportDTO {
 
         @NotBlank(message = "Le message initial est requis")
         private String initialMessage;
+
+        // URLs des pièces jointes déjà uploadées (via POST /support/attachments)
+        // avant la création du ticket. Optionnel : la plupart des tickets n'en
+        // ont pas.
+        private List<String> attachmentUrls;
     }
 
     @Data
@@ -43,6 +50,9 @@ public class SupportDTO {
     public static class AddMessageRequest {
         @NotBlank(message = "Le message ne peut pas être vide")
         private String message;
+
+        // Mêmes URLs pré-uploadées, attachées à ce message de suivi.
+        private List<String> attachmentUrls;
     }
 
     @Data
@@ -65,6 +75,32 @@ public class SupportDTO {
         private TicketStatusEnum status;
     }
 
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class FindPersonRequest {
+        @NotBlank(message = "Un email ou un numéro de téléphone est requis")
+        private String identifier; // email ou téléphone, résolu côté service
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class ManualSubscriptionActivationRequest {
+        @NotBlank(message = "Un motif est obligatoire pour activer manuellement un abonnement")
+        private String reason;
+
+        @NotBlank(message = "La référence du paiement Mobile Money est requise")
+        private String paymentReference; // ex: référence de transaction Orange Money / MTN MoMo
+
+        @NotNull(message = "Le montant payé est requis")
+        @Min(value = 1, message = "Le montant doit être positif")
+        private Integer amount;
+
+        private UUID ticketId; // optionnel, même logique que ResetIdentityLimitRequest
+    }
     // --- Responses ---
 
     @Data
@@ -93,6 +129,19 @@ public class SupportDTO {
         private String message;
         private boolean isSystemMessage;
         private LocalDateTime createdAt;
+        private List<TicketAttachmentResponse> attachments;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class TicketAttachmentResponse {
+        private UUID id;
+        private String fileUrl;
+        private String fileName;
+        private String contentType;
+        private long fileSizeBytes;
     }
 
     @Data
@@ -103,4 +152,27 @@ public class SupportDTO {
         private TicketSummaryResponse ticket;
         private List<TicketMessageResponse> messages;
     }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class PersonWithShopsResponse {
+        private UUID personId;
+        private String name;
+        private String email;
+        private String phoneNumber;
+        private List<ShopOption> shops;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class ShopOption {
+        private UUID shopId;
+        private String shopName;
+        private String subscriptionStatus; // affichage seulement, cf. SubscriptionStatusEnum
+    }
 }
+
