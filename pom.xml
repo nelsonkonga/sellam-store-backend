@@ -101,6 +101,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
+		<!-- Flyway 10+ ne reconnaît PostgreSQL que via ce module. Sans lui,
+		     le démarrage échoue avec « Unsupported Database: PostgreSQL 17.6 ». -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
