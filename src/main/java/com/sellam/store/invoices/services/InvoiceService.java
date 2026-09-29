@@ -156,7 +156,7 @@ public class InvoiceService
     {
         InvoiceEntity invoice = getEditableInvoice(invoiceId);
 
-        ProductEntity product = productsRepository.findById(request.getProductId())
+        ProductEntity product = productsRepository.findByIdForUpdate(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
 
         if (product.getShop() == null || invoice.getShop() == null
@@ -268,7 +268,8 @@ public class InvoiceService
             throw new IllegalArgumentException("Cette ligne n'appartient pas à cette facture");
         }
 
-        ProductEntity product = sale.getProduct();
+        ProductEntity product = productsRepository.findByIdForUpdate(sale.getProduct().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
         BigDecimal oldQuantity = sale.getQuantity();
 
         // Vérifier le stock pour la différence
