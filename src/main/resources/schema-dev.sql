@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS persons (
     verification_token_expires_at TIMESTAMP,
     reset_token VARCHAR(255),
     reset_token_expires_at TIMESTAMP,
+    token_version INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
