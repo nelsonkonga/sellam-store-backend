@@ -1,5 +1,7 @@
 package com.sellam.store.shops.services;
 
+import com.sellam.store.common.images.ImageCompressionService;
+import com.sellam.store.common.images.ImageCompressionService.PreparedImage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -67,6 +69,12 @@ public class SupabaseStorageService
     private static final String TICKET_ATTACHMENTS_BUCKET = "ticket-attachments";
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final ImageCompressionService imageCompressionService;
+
+    public SupabaseStorageService(ImageCompressionService imageCompressionService)
+    {
+        this.imageCompressionService = imageCompressionService;
+    }
 
     /**
      * Upload un logo de boutique et retourne son URL publique.
@@ -82,12 +90,10 @@ public class SupabaseStorageService
 
         validateFile(file);
 
-        String extension = extractExtension(file.getOriginalFilename());
-        String objectPath = "shops/" + shopId + "/logo-" + UUID.randomUUID() + extension;
+        PreparedImage image = prepare(file, ImageCompressionService.Use.LOGO, "la boutique " + shopId);
+        String objectPath = "shops/" + shopId + "/logo-" + UUID.randomUUID() + image.extension();
 
-        byte[] bytes = readBytes(file, "la boutique " + shopId);
-
-        uploadToBucket(SHOP_LOGOS_BUCKET, objectPath, bytes, file.getContentType(), "la boutique " + shopId);
+        uploadToBucket(SHOP_LOGOS_BUCKET, objectPath, image.bytes(), image.contentType(), "la boutique " + shopId);
 
         return supabaseUrl + "/storage/v1/object/public/" + SHOP_LOGOS_BUCKET + "/" + objectPath;
     }
@@ -104,12 +110,10 @@ public class SupabaseStorageService
 
         validateFile(file);
 
-        String extension = extractExtension(file.getOriginalFilename());
-        String objectPath = "products/" + productId + "/picture-" + UUID.randomUUID() + extension;
+        PreparedImage image = prepare(file, ImageCompressionService.Use.PRODUCT, "le produit " + productId);
+        String objectPath = "products/" + productId + "/picture-" + UUID.randomUUID() + image.extension();
 
-        byte[] bytes = readBytes(file, "le produit " + productId);
-
-        uploadToBucket(PRODUCT_PICTURES_BUCKET, objectPath, bytes, file.getContentType(), "le produit " + productId);
+        uploadToBucket(PRODUCT_PICTURES_BUCKET, objectPath, image.bytes(), image.contentType(), "le produit " + productId);
 
         return supabaseUrl + "/storage/v1/object/public/" + PRODUCT_PICTURES_BUCKET + "/" + objectPath;
     }
@@ -126,12 +130,10 @@ public class SupabaseStorageService
 
         validateFile(file);
 
-        String extension = extractExtension(file.getOriginalFilename());
-        String objectPath = "users/" + userId + "/profile-picture-" + UUID.randomUUID() + extension;
+        PreparedImage image = prepare(file, ImageCompressionService.Use.PROFILE, "le profil " + userId);
+        String objectPath = "users/" + userId + "/profile-picture-" + UUID.randomUUID() + image.extension();
 
-        byte[] bytes = readBytes(file, "le profil " + userId);
-
-        uploadToBucket(PROFILE_PICTURES_BUCKET, objectPath, bytes, file.getContentType(), "le profil " + userId);
+        uploadToBucket(PROFILE_PICTURES_BUCKET, objectPath, image.bytes(), image.contentType(), "le profil " + userId);
 
         return supabaseUrl + "/storage/v1/object/public/" + PROFILE_PICTURES_BUCKET + "/" + objectPath;
     }
@@ -157,12 +159,10 @@ public class SupabaseStorageService
 
         validateFile(file, TICKET_ATTACHMENT_MAX_SIZE_BYTES);
 
-        String extension = extractExtension(file.getOriginalFilename());
-        String objectPath = "tickets/" + ticketId + "/" + UUID.randomUUID() + extension;
+        PreparedImage image = prepare(file, ImageCompressionService.Use.ATTACHMENT, "le ticket " + ticketId);
+        String objectPath = "tickets/" + ticketId + "/" + UUID.randomUUID() + image.extension();
 
-        byte[] bytes = readBytes(file, "le ticket " + ticketId);
-
-        uploadToBucket(TICKET_ATTACHMENTS_BUCKET, objectPath, bytes, file.getContentType(), "le ticket " + ticketId);
+        uploadToBucket(TICKET_ATTACHMENTS_BUCKET, objectPath, image.bytes(), image.contentType(), "le ticket " + ticketId);
 
         return objectPath;
     }
@@ -262,6 +262,11 @@ public class SupabaseStorageService
         }
     }
 
+    private PreparedImage prepare(MultipartFile file, ImageCompressionService.Use use, String contextLabel)
+    {
+        return imageCompressionService.prepare(readBytes(file, contextLabel), file.getContentType(), use);
+    }
+
     private byte[] readBytes(MultipartFile file, String contextLabel)
     {
         try
@@ -295,14 +300,5 @@ public class SupabaseStorageService
         {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format non supporté (PNG, JPEG ou WEBP uniquement)");
         }
-    }
-
-    private String extractExtension(String originalFilename)
-    {
-        if (originalFilename == null || !originalFilename.contains("."))
-        {
-            return "";
-        }
-        return originalFilename.substring(originalFilename.lastIndexOf('.'));
     }
 }
