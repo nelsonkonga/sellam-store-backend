@@ -2,6 +2,7 @@ package com.sellam.store.common.security;
 
 import com.sellam.store.identity.repositories.ShopMembershipRepository;
 import com.sellam.store.shops.repositories.ShopRepository;
+import com.sellam.store.users.models.PermissionEnum;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -69,6 +70,23 @@ public class ShopAccessGuard implements IShopAccessGuard
     {
         AuthPrincipal principal = requirePrincipal(authentication);
         checkShopAccess(principal, shopId);
+    }
+
+    public void requirePermission(Authentication authentication, UUID shopId, PermissionEnum permission)
+    {
+        AuthPrincipal principal = requirePrincipal(authentication);
+        checkShopAccess(principal, shopId);
+        if ("ACCOUNT".equals(principal.getUserType()))
+        {
+            return;
+        }
+        boolean allowed = shopMembershipRepository.findActiveMembership(principal.getId(), shopId)
+                .map(membership -> membership.getEffectivePermissions().contains(permission))
+                .orElse(false);
+        if (!allowed)
+        {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Vous n'avez pas le droit d'accéder aux rapports de cette boutique.");
+        }
     }
 
     public static void allowed(AuthPrincipal principal, UUID shopId,

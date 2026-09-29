@@ -2,6 +2,7 @@ package com.sellam.store.reports.controllers;
 
 import com.sellam.store.common.email.services.EmailService;
 import com.sellam.store.common.security.IShopAccessGuard;
+import com.sellam.store.users.models.PermissionEnum;
 import com.sellam.store.reports.dto.ReportsDTO;
 import com.sellam.store.reports.services.ReportsPdfService;
 import com.sellam.store.reports.services.ReportsService;
@@ -40,7 +41,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getSummaryReport(shopId, start, end));
     }
 
@@ -52,7 +53,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam(defaultValue = "volume") String sortBy,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getProductPerformance(shopId, start, end, sortBy));
     }
 
@@ -63,7 +64,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getCashReliability(shopId, start, end));
     }
 
@@ -74,7 +75,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getNegativeMarginSales(shopId, start, end));
     }
 
@@ -85,14 +86,14 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getCategoryPerformance(shopId, start, end));
     }
 
     @GetMapping("/dead-stock")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ReportsDTO.DeadStockItem>> getDeadStock(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getDeadStock(shopId));
     }
 
@@ -103,7 +104,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getPaymentMethodPerformance(shopId, start, end));
     }
 
@@ -114,7 +115,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getEmployeePerformance(shopId, start, end));
     }
 
@@ -125,7 +126,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getCustomerPerformance(shopId, start, end));
     }
 
@@ -134,21 +135,21 @@ public class ReportsRestController {
     @GetMapping("/cashflow-projection")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ReportsDTO.CashflowProjection> getCashflowProjection(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getCashflowProjection(shopId));
     }
 
     @GetMapping("/dormant-stock-value")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ReportsDTO.DormantStockValue> getDormantStockValue(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getDormantStockValue(shopId));
     }
 
     @GetMapping("/stock-out-alerts")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ReportsDTO.StockOutAlertItem>> getStockOutAlerts(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getStockOutAlerts(shopId));
     }
 
@@ -159,7 +160,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getFrequentlyBoughtTogether(shopId, start, end));
     }
 
@@ -170,7 +171,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         return ResponseEntity.ok(reportsService.getSalesAnomalies(shopId, start, end));
     }
 
@@ -183,7 +184,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         ReportsDTO.SummaryReport report = reportsService.getSummaryReport(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateSummaryReportPdf(shopName, start, end, report);
@@ -201,7 +202,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam(defaultValue = "volume") String sortBy,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.TopProductItem> items = reportsService.getProductPerformance(shopId, start, end, sortBy);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateProductPerformancePdf(shopName, start, end, items);
@@ -218,7 +219,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.CategoryPerformanceItem> items = reportsService.getCategoryPerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCategoryPerformancePdf(shopName, start, end, items);
@@ -235,7 +236,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.EmployeePerformanceItem> items = reportsService.getEmployeePerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateEmployeePerformancePdf(shopName, start, end, items);
@@ -252,7 +253,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.CashReliabilityItem> items = reportsService.getCashReliability(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCashReliabilityPdf(shopName, start, end, items);
@@ -269,7 +270,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.NegativeMarginSaleItem> items = reportsService.getNegativeMarginSales(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateNegativeMarginSalesPdf(shopName, start, end, items);
@@ -282,7 +283,7 @@ public class ReportsRestController {
     @GetMapping("/dead-stock/pdf")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportDeadStockPdf(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.DeadStockItem> items = reportsService.getDeadStock(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateDeadStockPdf(shopName, items);
@@ -299,7 +300,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.PaymentMethodItem> items = reportsService.getPaymentMethodPerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generatePaymentMethodPerformancePdf(shopName, start, end, items);
@@ -316,7 +317,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.CustomerPerformanceItem> items = reportsService.getCustomerPerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCustomerPerformancePdf(shopName, start, end, items);
@@ -329,7 +330,7 @@ public class ReportsRestController {
     @GetMapping("/cashflow-projection/pdf")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportCashflowProjectionPdf(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         ReportsDTO.CashflowProjection projection = reportsService.getCashflowProjection(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCashflowProjectionPdf(shopName, projection);
@@ -342,7 +343,7 @@ public class ReportsRestController {
     @GetMapping("/dormant-stock-value/pdf")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportDormantStockValuePdf(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         ReportsDTO.DormantStockValue value = reportsService.getDormantStockValue(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateDormantStockValuePdf(shopName, value);
@@ -355,7 +356,7 @@ public class ReportsRestController {
     @GetMapping("/stock-out-alerts/pdf")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportStockOutAlertsPdf(@RequestParam UUID shopId, Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.StockOutAlertItem> items = reportsService.getStockOutAlerts(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateStockOutAlertsPdf(shopName, items);
@@ -372,7 +373,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.FrequentlyBoughtTogetherItem> items = reportsService.getFrequentlyBoughtTogether(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateFrequentlyBoughtTogetherPdf(shopName, start, end, items);
@@ -389,7 +390,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.SalesAnomalyItem> items = reportsService.getSalesAnomalies(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateSalesAnomaliesPdf(shopName, start, end, items);
@@ -409,7 +410,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         ReportsDTO.SummaryReport report = reportsService.getSummaryReport(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateSummaryReportPdf(shopName, start, end, report);
@@ -426,7 +427,7 @@ public class ReportsRestController {
             @RequestParam String toEmail,
             @RequestParam(defaultValue = "volume") String sortBy,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.TopProductItem> items = reportsService.getProductPerformance(shopId, start, end, sortBy);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateProductPerformancePdf(shopName, start, end, items);
@@ -442,7 +443,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.CategoryPerformanceItem> items = reportsService.getCategoryPerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCategoryPerformancePdf(shopName, start, end, items);
@@ -458,7 +459,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.EmployeePerformanceItem> items = reportsService.getEmployeePerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateEmployeePerformancePdf(shopName, start, end, items);
@@ -474,7 +475,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.CashReliabilityItem> items = reportsService.getCashReliability(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCashReliabilityPdf(shopName, start, end, items);
@@ -490,7 +491,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.NegativeMarginSaleItem> items = reportsService.getNegativeMarginSales(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateNegativeMarginSalesPdf(shopName, start, end, items);
@@ -504,7 +505,7 @@ public class ReportsRestController {
             @RequestParam UUID shopId,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.DeadStockItem> items = reportsService.getDeadStock(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateDeadStockPdf(shopName, items);
@@ -520,7 +521,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.PaymentMethodItem> items = reportsService.getPaymentMethodPerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generatePaymentMethodPerformancePdf(shopName, start, end, items);
@@ -536,7 +537,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.CustomerPerformanceItem> items = reportsService.getCustomerPerformance(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCustomerPerformancePdf(shopName, start, end, items);
@@ -550,7 +551,7 @@ public class ReportsRestController {
             @RequestParam UUID shopId,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         ReportsDTO.CashflowProjection projection = reportsService.getCashflowProjection(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateCashflowProjectionPdf(shopName, projection);
@@ -564,7 +565,7 @@ public class ReportsRestController {
             @RequestParam UUID shopId,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         ReportsDTO.DormantStockValue value = reportsService.getDormantStockValue(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateDormantStockValuePdf(shopName, value);
@@ -578,7 +579,7 @@ public class ReportsRestController {
             @RequestParam UUID shopId,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.StockOutAlertItem> items = reportsService.getStockOutAlerts(shopId);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateStockOutAlertsPdf(shopName, items);
@@ -594,7 +595,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.FrequentlyBoughtTogetherItem> items = reportsService.getFrequentlyBoughtTogether(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateFrequentlyBoughtTogetherPdf(shopName, start, end, items);
@@ -610,7 +611,7 @@ public class ReportsRestController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam String toEmail,
             Authentication authentication) {
-        shopAccessGuard.checkShopAccess(authentication, shopId);
+        shopAccessGuard.requirePermission(authentication, shopId, PermissionEnum.VIEW_REPORTS);
         List<ReportsDTO.SalesAnomalyItem> items = reportsService.getSalesAnomalies(shopId, start, end);
         String shopName = reportsService.getShopName(shopId);
         byte[] pdf = reportsPdfService.generateSalesAnomaliesPdf(shopName, start, end, items);

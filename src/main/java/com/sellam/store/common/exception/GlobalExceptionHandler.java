@@ -135,8 +135,8 @@ public class GlobalExceptionHandler
         logger.error("Unhandled exception", ex);
         
         ErrorResponse response = ErrorResponse.builder()
-                .message("Une erreur interne est survenue")
-                .error(ex.getClass().getSimpleName())
+                .message("Une erreur interne est survenue. Réessayez dans un instant.")
+                .error("INTERNAL_ERROR")
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .timestamp(LocalDateTime.now())
                 .build();

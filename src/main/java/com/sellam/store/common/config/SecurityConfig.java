@@ -118,13 +118,13 @@ public class SecurityConfig
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers("/api/notifications/push/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/notifications/push/vapid-key").permitAll()
                         .requestMatchers("/api/payments/cinetpay/notify", "/api/payments/manual-payment-info").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .sessionFixation().none()
+                        .sessionFixation().migrateSession()
                 )
                 .exceptionHandling(exceptions -> exceptions
                     .accessDeniedHandler((request, response, exception) -> {
@@ -138,7 +138,7 @@ public class SecurityConfig
                         .successHandler(OAuth2SuccessHandler)
                         .failureHandler(((request, response, exception) -> {
                             log.warn("OAuth2 authentication failed: {}", exception.getMessage(), exception);
-                            response.sendRedirect(frontendUrl + "/login?error=oauth_failed&message=" + exception.getMessage());
+                            response.sendRedirect(frontendUrl + "/login?error=oauth_failed");
                         })))
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(getJwtAuthFilter(), UsernamePasswordAuthenticationFilter.class)

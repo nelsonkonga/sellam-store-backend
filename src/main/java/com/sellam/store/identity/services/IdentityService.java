@@ -206,7 +206,7 @@ public class IdentityService
     @Transactional
     public void changePhoneNumber(UUID personId, String newPhoneNumber, boolean isAdminOverride)
     {
-        if (!isAdminOverride && !canChangePhoneNumber(personId))
+        if (!canChangePhoneNumber(personId))
         {
             throw new IllegalArgumentException("Vous ne pouvez changer votre numÃ©ro de tÃ©lÃ©phone qu'une fois tous les 3 mois");
         }
@@ -231,7 +231,7 @@ public class IdentityService
     @Transactional
     public void changeEmail(UUID personId, String newEmail, boolean isAdminOverride)
     {
-        if (!isAdminOverride && !canChangeEmail(personId))
+        if (!canChangeEmail(personId))
         {
             throw new IllegalArgumentException("Vous ne pouvez changer votre email qu'une fois tous les 3 mois");
         }

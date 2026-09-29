@@ -164,7 +164,7 @@ public class UserRestController
     {
         UUID resourceShopId = userService.getShopIdByUserId(userId);
         checkShopOwnership(authentication, resourceShopId);
-        userService.deleteUser(userId);
+        userService.deleteUser(userId, resourceShopId);
         return null;
     }
 

@@ -404,6 +404,11 @@ public class AuthService
             throw new IllegalArgumentException("Ce lien a expirÃ©, demandez-en un nouveau");
         }
 
+        if (!isPasswordValid(request.getNewPassword()))
+        {
+            throw new IllegalArgumentException("Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.");
+        }
+
         person.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         person.setResetToken(null);
         person.setResetTokenExpiresAt(null);
