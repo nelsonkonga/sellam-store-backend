@@ -2,6 +2,7 @@ package com.sellam.store.invoices.repositories;
 
 import com.sellam.store.invoices.models.InvoiceEntity;
 import com.sellam.store.invoices.models.InvoiceStatusEnum;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -10,9 +11,17 @@ import java.util.UUID;
 
 public interface InvoiceRepository extends JpaRepository<InvoiceEntity, UUID>
 {
+    @EntityGraph(attributePaths = {"lines", "lines.product"})
     List<InvoiceEntity> findByShop_IdAndStatusOrderByCreatedAtDesc(UUID shopId,
                                                                    InvoiceStatusEnum status
                                                                     );
+
+    long countByShop_IdAndStatusAndCreatedAtBetween(
+            UUID shopId,
+            InvoiceStatusEnum status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
     List<InvoiceEntity> findByShop_IdAndStatusAndCreatedAtBetween(
             UUID shopId,
             InvoiceStatusEnum status,

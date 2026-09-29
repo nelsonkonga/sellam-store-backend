@@ -5,7 +5,10 @@ import com.sellam.store.balancesettings.repositories.BalanceSettingsRepository;
 import com.sellam.store.common.email.services.EmailService;
 import com.sellam.store.notifications.models.NotificationEntity;
 import com.sellam.store.notifications.repositories.NotificationRepository;
+import com.sellam.store.invoices.models.InvoiceStatusEnum;
+import com.sellam.store.invoices.repositories.InvoiceRepository;
 import com.sellam.store.notifications.services.PushNotificationService;
+import com.sellam.store.products.repositories.ProductsRepository;
 import com.sellam.store.identity.models.ShopMembershipEntity;
 import com.sellam.store.identity.repositories.ShopMembershipRepository;
 import com.sellam.store.users.models.RoleEnum;
@@ -35,6 +38,8 @@ public class BalanceNotificationScheduler {
     private final ShopMembershipRepository shopMembershipRepository;
     private final EmailService emailService;
     private final PushNotificationService pushNotificationService;
+    private final InvoiceRepository invoiceRepository;
+    private final ProductsRepository productsRepository;
 
     /**
      * S'exÃ©cute au dÃ©but de chaque minute pour envoyer les rappels de bilan.
@@ -136,6 +141,31 @@ public class BalanceNotificationScheduler {
                     "Rappel de bilan",
                     "Il est temps de faire le bilan pour " + setting.getShop().getName()
             );
+
+            LocalDateTime startOfDay = date.atStartOfDay();
+            long salesToday = invoiceRepository.countByShop_IdAndStatusAndCreatedAtBetween(
+                    setting.getShop().getId(),
+                    InvoiceStatusEnum.VALIDATED,
+                    startOfDay,
+                    startOfDay.plusDays(1)
+            );
+            if (salesToday == 0)
+            {
+                pushNotificationService.sendToShop(
+                        setting.getShop().getId(),
+                        "Aucune vente enregistrée",
+                        "Pensez à renseigner les ventes de " + setting.getShop().getName() + "."
+                );
+            }
+            long criticalStock = productsRepository.countCriticalStock(setting.getShop().getId());
+            if (criticalStock > 0)
+            {
+                pushNotificationService.sendToShop(
+                        setting.getShop().getId(),
+                        "Stock bas",
+                        criticalStock + " produit(s) sont sous le seuil d'alerte."
+                );
+            }
 
             // CrÃ©ation d'une seule entrÃ©e de notification pour la boutique
             String recipientsStr = String.join(", ", recipientEmails);
