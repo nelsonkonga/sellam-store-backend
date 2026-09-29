@@ -198,7 +198,7 @@ public class AuthService
         // requête ultérieure. Un token "PERSON" faisait échouer createShop
         // (403 Access Denied) pour tout compte fraîchement inscrit, alors que
         // la réponse ci-dessous annonçait "ACCOUNT" au frontend.
-        String token = jwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "ACCOUNT", null, savedPerson.getPhoneNumber());
+        String token = jwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "ACCOUNT", null, savedPerson.getPhoneNumber(), savedPerson.getTokenVersion());
 
         return AuthDTO.AuthResponse.builder()
                 .token(token)
@@ -302,7 +302,18 @@ public class AuthService
         }
 
         log.info("Login successful: {}", person.getId());
+        return toAuthResponse(person);
+    }
 
+    public AuthDTO.AuthResponse resumeSession(UUID personId)
+    {
+        PersonEntity person = personRepository.findById(personId)
+                .orElseThrow(() -> new ResourceNotFoundException("Compte introuvable"));
+        return toAuthResponse(person);
+    }
+
+    private AuthDTO.AuthResponse toAuthResponse(PersonEntity person)
+    {
         // Détermine le userType de façon durable via LegacyIdMapping.legacyType
         // quand ce mapping existe (créé par AuthService.register pour un
         // propriétaire ACCOUNT). UserService.createUser (création d'employé)
@@ -342,7 +353,7 @@ public class AuthService
         }
 
         // Génère le token
-        String token = jwtProvider.generateToken(person.getId(), person.getName(), userType, shopId, person.getPhoneNumber());
+        String token = jwtProvider.generateToken(person.getId(), person.getName(), userType, shopId, person.getPhoneNumber(), person.getTokenVersion());
 
         return AuthDTO.AuthResponse.builder()
                 .token(token)
@@ -359,8 +370,13 @@ public class AuthService
     @Transactional
     public AuthDTO.ForgotPasswordResponse forgotPassword(AuthDTO.ForgotPasswordRequest request)
     {
-        PersonEntity person = findPersonByPhoneNumber(request.getPhoneNumber())
-                .orElseThrow(() -> new IllegalArgumentException("Aucun compte trouvÃ© avec ce numÃ©ro de tÃ©lÃ©phone"));
+        PersonEntity person = findPersonByPhoneNumber(request.getPhoneNumber()).orElse(null);
+        if (person == null)
+        {
+            return AuthDTO.ForgotPasswordResponse.builder()
+                    .message("Si un compte existe pour ce numéro, un lien de réinitialisation a été envoyé.")
+                    .build();
+        }
 
         String resetToken = UUID.randomUUID().toString();
         person.setResetToken(resetToken);
@@ -373,7 +389,7 @@ public class AuthService
         }
 
         return AuthDTO.ForgotPasswordResponse.builder()
-                .message("Un lien de rÃ©initialisation a Ã©tÃ© envoyÃ© Ã  votre email. Si vous n'avez pas d'email, veuillez contacter l'administrateur.")
+                .message("Si un compte existe pour ce numéro, un lien de réinitialisation a été envoyé.")
                 .build();
     }
 
@@ -391,10 +407,20 @@ public class AuthService
         person.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         person.setResetToken(null);
         person.setResetTokenExpiresAt(null);
+        person.setTokenVersion(person.getTokenVersion() + 1);
         personRepository.save(person);
 
         return AuthDTO.ResetPasswordResponse.builder()
                 .message("Votre mot de passe a Ã©tÃ© rÃ©initialisÃ© avec succÃ¨s. Vous pouvez maintenant vous connecter.")
                 .build();
+    }
+
+    @Transactional
+    public void logout(UUID personId)
+    {
+        personRepository.findById(personId).ifPresent(person -> {
+            person.setTokenVersion(person.getTokenVersion() + 1);
+            personRepository.save(person);
+        });
     }
 }

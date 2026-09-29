@@ -2,7 +2,7 @@ package com.sellam.store.common.config;
 
 import com.sellam.store.auth.OAuth2SuccessHandler;
 import com.sellam.store.common.security.JwtAuthFilter;
-import com.sellam.store.subscriptions.repositories.SubscriptionRepository;
+import com.sellam.store.common.security.RateLimitFilter;
 import com.sellam.store.subscriptions.security.SubscriptionAccessFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,8 +25,8 @@ import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResp
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.endpoint.RestClientAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -56,13 +56,31 @@ public class SecurityConfig
     @Value("${app.cors.allowed-origins:http://localhost:5173,https://sellam-store.vercel.app,https://sellam.store}")
     private String[] allowedOrigins;
 
-    private final SubscriptionRepository subscriptionRepository;
+    private final RateLimitFilter rateLimitFilter;
+    private final SubscriptionAccessFilter subscriptionAccessFilter;
 
-    public SecurityConfig(ObjectProvider<JwtAuthFilter> jwtAuthFilterProvider, @Lazy OAuth2SuccessHandler OAuth2SuccessHandler, SubscriptionRepository subscriptionRepository)
+    public SecurityConfig(ObjectProvider<JwtAuthFilter> jwtAuthFilterProvider, @Lazy OAuth2SuccessHandler OAuth2SuccessHandler, RateLimitFilter rateLimitFilter, SubscriptionAccessFilter subscriptionAccessFilter)
     {
         this.jwtAuthFilterProvider = jwtAuthFilterProvider;
         this.OAuth2SuccessHandler = OAuth2SuccessHandler;
-        this.subscriptionRepository = subscriptionRepository;
+        this.rateLimitFilter = rateLimitFilter;
+        this.subscriptionAccessFilter = subscriptionAccessFilter;
+    }
+
+    @Bean
+    public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter)
+    {
+        FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<SubscriptionAccessFilter> subscriptionFilterRegistration(SubscriptionAccessFilter filter)
+    {
+        FilterRegistrationBean<SubscriptionAccessFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     private JwtAuthFilter getJwtAuthFilter()
@@ -122,7 +140,9 @@ public class SecurityConfig
                             log.warn("OAuth2 authentication failed: {}", exception.getMessage(), exception);
                             response.sendRedirect(frontendUrl + "/login?error=oauth_failed&message=" + exception.getMessage());
                         })))
-                .addFilterBefore(getJwtAuthFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(getJwtAuthFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(subscriptionAccessFilter, JwtAuthFilter.class);
 
         return http.build();
     }

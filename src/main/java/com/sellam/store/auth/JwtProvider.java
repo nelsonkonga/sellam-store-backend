@@ -51,12 +51,18 @@ public class JwtProvider
      */
     public String generateToken(UUID id, String name, String userType, UUID shopId, String phoneNumber)
     {
+        return generateToken(id, name, userType, shopId, phoneNumber, 0);
+    }
+
+    public String generateToken(UUID id, String name, String userType, UUID shopId, String phoneNumber, int tokenVersion)
+    {
         return Jwts.builder()
                     .setSubject(id.toString())
                     .claim("name", name)
                     .claim("userType", userType)
                     .claim("shopId", shopId != null ? shopId.toString() : null)
                     .claim("phoneNumber", phoneNumber)
+                    .claim("tv", tokenVersion)
                     .setIssuedAt(new Date())
                     .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
                     .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -64,14 +70,26 @@ public class JwtProvider
 
     }
 
-
-    public AuthPrincipal getPrincipalFromToken(String token)
+    public int getTokenVersion(String token)
     {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey((getSigningKey()))
+        Claims claims = parseClaims(token);
+        Integer version = claims.get("tv", Integer.class);
+        return version == null ? 0 : version;
+    }
+
+    private Claims parseClaims(String token)
+    {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+
+    public AuthPrincipal getPrincipalFromToken(String token)
+    {
+        Claims claims = parseClaims(token);
 
         String shopIdStr = claims.get("shopId", String.class);
 

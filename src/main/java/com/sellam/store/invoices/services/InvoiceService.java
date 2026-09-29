@@ -159,6 +159,12 @@ public class InvoiceService
         ProductEntity product = productsRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
 
+        if (product.getShop() == null || invoice.getShop() == null
+                || !product.getShop().getId().equals(invoice.getShop().getId()))
+        {
+            throw new IllegalArgumentException("Ce produit n'appartient pas à cette boutique");
+        }
+
         // Vérifier si le produit existe déjà sur la facture
         SaleEntity existingLine = salesRepository.findByInvoice_IdAndProduct_Id(invoiceId, request.getProductId());
 

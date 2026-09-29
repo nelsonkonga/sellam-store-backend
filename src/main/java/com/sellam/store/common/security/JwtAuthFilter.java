@@ -21,6 +21,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import jakarta.servlet.http.Cookie;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -69,21 +71,26 @@ public class JwtAuthFilter extends OncePerRequestFilter
             return;
         }
 
-        String authHeader = request.getHeader("Authorization");
+        String token = resolveToken(request);
 
-        if (authHeader == null || !authHeader.startsWith("Bearer "))
+        if (token == null)
         {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = authHeader.substring(7);
 
         try
         {
             if (jwtProvider.validateToken(token))
             {
                 AuthPrincipal principal = jwtProvider.getPrincipalFromToken(token);
+                Optional<PersonEntity> personOpt = personRepository.findById(principal.getId());
+                if (personOpt.isEmpty() || personOpt.get().getTokenVersion() != jwtProvider.getTokenVersion(token))
+                {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 List<GrantedAuthority> authorities = resolveAuthorities(principal);
 
@@ -107,6 +114,27 @@ public class JwtAuthFilter extends OncePerRequestFilter
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request)
+    {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer "))
+        {
+            return authHeader.substring(7);
+        }
+        if (request.getCookies() == null)
+        {
+            return null;
+        }
+        for (Cookie cookie : request.getCookies())
+        {
+            if ("sellam_access".equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank())
+            {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 
     /**

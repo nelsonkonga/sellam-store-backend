@@ -67,11 +67,15 @@ public class UserRestController
         return userService.listUsers(shopId);
     }
 
-    // Pas de restriction : un employé doit pouvoir consulter ses propres infos.
     @GetMapping("/{userId}")
     @ResponseStatus(HttpStatus.OK)
-    public UserDTO.UserResponse getUser(@PathVariable UUID userId)
+    public UserDTO.UserResponse getUser(@PathVariable UUID userId, Authentication authentication)
     {
+        AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        if (!principal.getId().equals(userId))
+        {
+            checkShopOwnership(authentication, userService.getShopIdByUserId(userId));
+        }
         return userService.getUser(userId);
     }
 

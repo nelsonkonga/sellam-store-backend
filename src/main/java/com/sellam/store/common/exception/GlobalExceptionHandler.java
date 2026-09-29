@@ -1,6 +1,7 @@
 package com.sellam.store.common.exception;
 
 import com.sellam.store.payments.exceptions.PaymentProviderUnavailableException;
+import com.sellam.store.subscriptions.security.SubscriptionExpiredException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -69,6 +70,18 @@ public class GlobalExceptionHandler
                 .build();
         
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(SubscriptionExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleSubscriptionExpired(SubscriptionExpiredException ex)
+    {
+        ErrorResponse response = ErrorResponse.builder()
+                .message(ex.getMessage())
+                .error("SUBSCRIPTION_EXPIRED")
+                .status(HttpStatus.FORBIDDEN.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

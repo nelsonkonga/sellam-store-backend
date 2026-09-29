@@ -184,6 +184,7 @@ public class UserService {
         PersonEntity person = personRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
         person.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        person.setTokenVersion(person.getTokenVersion() + 1);
         personRepository.save(person);
     }
 

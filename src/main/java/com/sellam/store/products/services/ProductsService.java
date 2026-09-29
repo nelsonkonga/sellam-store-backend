@@ -50,6 +50,7 @@ public class ProductsService
 
         SaleTypeEntity saleType = saleTypeRepository.findById(input.getSaleTypeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Type de vente introuvable"));
+        assertSaleTypeBelongsToShop(saleType, input.getShopId());
 
         ProductEntity newProduct = ProductEntity.builder()
                 .name(input.getName())
@@ -92,9 +93,15 @@ public class ProductsService
     {
         ProductEntity product = productsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit Introuvable"));
-        
+
+        if (!product.getShop().getId().equals(input.getShopId()))
+        {
+            throw new ProductsException("Ce produit n'appartient pas à cette boutique");
+        }
+
         SaleTypeEntity saleType = saleTypeRepository.findById(input.getSaleTypeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Type de vente introuvable"));
+        assertSaleTypeBelongsToShop(saleType, product.getShop().getId());
 
         product.setName(input.getName());
         product.setBarcode(input.getBarcode());
@@ -147,6 +154,21 @@ public List<ProductsDTO.ProductSalesResponse> listTopSellingProducts(UUID shopId
 }
 
 
+
+    public UUID getProductShopId(UUID productId)
+    {
+        ProductEntity product = productsRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
+        return product.getShop().getId();
+    }
+
+    private void assertSaleTypeBelongsToShop(SaleTypeEntity saleType, UUID shopId) throws ProductsException
+    {
+        if (saleType.getShop() != null && !saleType.getShop().getId().equals(shopId))
+        {
+            throw new ProductsException("Ce type de vente n'appartient pas à cette boutique");
+        }
+    }
 
     public ProductsDTO.ProductResponse getProductByBarcode(UUID shopId, String barcode) {
         ProductEntity product = productsRepository.findByShop_IdAndBarcode(shopId, barcode)

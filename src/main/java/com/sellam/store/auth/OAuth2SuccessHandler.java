@@ -39,6 +39,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
 
     private final PersonRepository personRepository;
     private final JwtProvider JwtProvider;
+    private final AuthCookieWriter authCookieWriter;
 
     @Value("${app.registration.blocked:false}")
     private boolean registrationBlocked;
@@ -64,6 +65,11 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
         String email = oauthUser.getAttribute("email");
         String name = oauthUser.getAttribute("name");
         String googleId = oauthUser.getAttribute("sub");
+        if (!Boolean.TRUE.equals(oauthUser.getAttribute("email_verified")))
+        {
+            response.sendRedirect(frontendUrl + "/oauth-error?error=email_not_verified");
+            return;
+        }
 
         // Chercher une personne existante par email
         Optional<PersonEntity> existingPerson = personRepository.findByEmail(email);
@@ -89,7 +95,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
                     .build();
             PersonEntity savedPerson = personRepository.save(newPerson);
             
-            String token = JwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "PERSON", null, savedPerson.getPhoneNumber());
+            String token = JwtProvider.generateToken(savedPerson.getId(), savedPerson.getName(), "ACCOUNT", null, savedPerson.getPhoneNumber(), savedPerson.getTokenVersion());
+            authCookieWriter.writeAccessCookie(request, response, token);
             String redirectUrl = buildRedirectUrl(token, savedPerson.getId(), savedPerson.getName(), savedPerson.getEmail(), true);
             response.sendRedirect(redirectUrl);
             return;
@@ -106,8 +113,14 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler
             personRepository.save(person);
         }
 
-        String token = JwtProvider.generateToken(person.getId(), person.getName(), "PERSON", null, person.getPhoneNumber());
-        String redirectUrl = buildRedirectUrl(token, person.getId(), person.getName(), person.getEmail(), person.isEmailVerified());
+        if (!person.isEmailVerified())
+        {
+            person.setEmailVerified(true);
+            personRepository.save(person);
+        }
+        String token = JwtProvider.generateToken(person.getId(), person.getName(), "ACCOUNT", null, person.getPhoneNumber(), person.getTokenVersion());
+        authCookieWriter.writeAccessCookie(request, response, token);
+        String redirectUrl = buildRedirectUrl(token, person.getId(), person.getName(), person.getEmail(), true);
         response.sendRedirect(redirectUrl);
     }
 

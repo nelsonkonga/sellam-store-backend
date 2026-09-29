@@ -558,6 +558,16 @@ public class CashSessionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Caisse introuvable"));
     }
 
+    public UUID getRegisterShopId(UUID registerId) {
+        return registerRepository.findById(registerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Caisse introuvable"))
+                .getShop().getId();
+    }
+
+    public UUID getSessionShopId(UUID sessionId) {
+        return findSession(sessionId).getRegister().getShop().getId();
+    }
+
     private CashRegisterSessionEntity findSession(UUID id) {
         return sessionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Session de caisse introuvable"));

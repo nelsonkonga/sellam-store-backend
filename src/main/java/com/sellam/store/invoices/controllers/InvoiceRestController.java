@@ -3,6 +3,7 @@ package com.sellam.store.invoices.controllers;
 import com.sellam.store.common.security.AuthPrincipal;
 import com.sellam.store.common.security.IShopAccessGuard;
 import com.sellam.store.invoices.dto.InvoiceDTO;
+import com.sellam.store.subscriptions.security.SubscriptionWriteGuard;
 import com.sellam.store.invoices.services.InvoiceService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
@@ -24,13 +25,17 @@ public class InvoiceRestController
 
     private final InvoiceService invoiceService;
     private final IShopAccessGuard shopAccessGuard;
+    private final SubscriptionWriteGuard subscriptionWriteGuard;
 
     @PreAuthorize("@sec.can(authentication, 'CREATE_INVOICE')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public InvoiceDTO.InvoiceResponse create(@RequestParam UUID shopId,
-                                             @RequestBody InvoiceDTO.CreateInvoiceRequest request)
+                                             @RequestBody InvoiceDTO.CreateInvoiceRequest request,
+                                             Authentication authentication)
     {
+        shopAccessGuard.checkShopAccess(authentication, shopId);
+        subscriptionWriteGuard.assertWritable(shopId);
         return invoiceService.createInvoice(shopId, request);
     }
 
@@ -42,6 +47,9 @@ public class InvoiceRestController
                                               Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        UUID invoiceShopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(principal, invoiceShopId);
+        subscriptionWriteGuard.assertWritable(invoiceShopId);
         return invoiceService.addLine(id, request, principal);
     }
 
@@ -54,6 +62,9 @@ public class InvoiceRestController
                                                          Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        UUID invoiceShopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(principal, invoiceShopId);
+        subscriptionWriteGuard.assertWritable(invoiceShopId);
         return invoiceService.modifyLineQuantity(id, saleId, request.getQuantity(), principal);
     }
 
@@ -66,6 +77,9 @@ public class InvoiceRestController
                                                         Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        UUID invoiceShopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(principal, invoiceShopId);
+        subscriptionWriteGuard.assertWritable(invoiceShopId);
         return invoiceService.applyLineDiscount(id, saleId, request, principal);
     }
 
@@ -77,6 +91,9 @@ public class InvoiceRestController
                                                  Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        UUID invoiceShopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(principal, invoiceShopId);
+        subscriptionWriteGuard.assertWritable(invoiceShopId);
         return invoiceService.removeLine(id, saleId, isManagerAction, principal);
     }
 
@@ -88,6 +105,9 @@ public class InvoiceRestController
                                                     Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        UUID invoiceShopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(principal, invoiceShopId);
+        subscriptionWriteGuard.assertWritable(invoiceShopId);
         return invoiceService.applyInvoiceDiscount(id, request, principal);
     }
 
@@ -99,6 +119,9 @@ public class InvoiceRestController
                                                Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        UUID invoiceShopId = invoiceService.getInvoiceShopId(id);
+        shopAccessGuard.checkShopAccess(principal, invoiceShopId);
+        subscriptionWriteGuard.assertWritable(invoiceShopId);
         return invoiceService.validateInvoice(id, request, principal);
     }
 

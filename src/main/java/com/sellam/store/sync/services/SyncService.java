@@ -12,7 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sellam.store.common.security.AuthPrincipal;
 import com.sellam.store.invoices.dto.InvoiceDTO;
+import com.sellam.store.users.models.PermissionEnum;
 import com.sellam.store.invoices.services.InvoiceService;
 import com.sellam.store.sync.dto.SyncDTO;
 import com.sellam.store.identity.repositories.PersonRepository;
@@ -38,7 +40,7 @@ public class SyncService
         this.shopMembershipRepository = shopMembershipRepository;
     }
 
-    public SyncDTO.SyncResponse processSync(SyncDTO.SyncRequest request)
+    public SyncDTO.SyncResponse processSync(SyncDTO.SyncRequest request, AuthPrincipal principal)
     {
         List<Long> processed = new ArrayList<>();
         List<String> conflicts = new ArrayList<>();
@@ -56,11 +58,11 @@ public class SyncService
             {
                 if ("REGISTER_SALE".equals(action.getType()))
                 {
-                    processRegisterSale(action);
+                    processRegisterSale(action, principal);
                 }
                 else if ("SYNC_INVOICE".equals(action.getType()))
                 {
-                    processSyncInvoice(action);
+                    processSyncInvoice(action, principal);
                 }
                 processed.add(action.getLocalId());
             }
@@ -83,15 +85,17 @@ public class SyncService
     }
 
     @SuppressWarnings("unchecked")
-    private void processSyncInvoice(SyncDTO.PendingAction action)
+    private void processSyncInvoice(SyncDTO.PendingAction action, AuthPrincipal principal)
     {
         transactionTemplate.execute(status -> {
             UUID shopId = UUID.fromString(action.getShopId());
+            requireShopPermission(principal, shopId, PermissionEnum.CREATE_INVOICE);
+            requireShopPermission(principal, shopId, PermissionEnum.VALIDATE_INVOICE);
             Map<String, Object> payload = action.getPayload();
 
             String customerName = (String) payload.get("customerName");
-            String localCreatedAt = action.getLocalCreatedAt(); // Date réelle de création locale
-            String soldBy = action.getSoldBy(); // ID de l'utilisateur qui a créé la facture
+            String localCreatedAt = action.getLocalCreatedAt();
+            String soldBy = principal.getId().toString();
 
             // 1. Create invoice
             InvoiceDTO.CreateInvoiceRequest createReq = InvoiceDTO.CreateInvoiceRequest.builder()
@@ -113,6 +117,9 @@ public class SyncService
                             .quantity(quantity);
                             
                     // Optional line discount
+                    if (line.get("lineDiscountAmount") != null || line.get("lineDiscountType") != null) {
+                        requireShopPermission(principal, shopId, PermissionEnum.APPLY_LINE_DISCOUNT);
+                    }
                     if (line.get("lineDiscountAmount") != null) {
                         lineReq.discountValue(new BigDecimal(line.get("lineDiscountAmount").toString()));
                     }
@@ -126,6 +133,7 @@ public class SyncService
             
             // 3. Apply global discount if any
             if (payload.get("discountAmount") != null) {
+                requireShopPermission(principal, shopId, PermissionEnum.APPLY_GLOBAL_DISCOUNT);
                 BigDecimal discountAmt = new BigDecimal(payload.get("discountAmount").toString());
                 String discountType = (String) payload.get("discountType");
                 
@@ -187,12 +195,28 @@ public class SyncService
         });
     }
 
-    private void processRegisterSale(SyncDTO.PendingAction action)
+    private void requireShopPermission(AuthPrincipal principal, UUID shopId, PermissionEnum permission)
+    {
+        if (principal != null && "ACCOUNT".equals(principal.getUserType()))
+        {
+            return;
+        }
+        var membership = shopMembershipRepository.findActiveMembership(principal.getId(), shopId)
+                .orElseThrow(() -> new IllegalArgumentException("Vous n'avez pas accès à cette boutique."));
+        if (membership.getEffectivePermissions() == null || !membership.getEffectivePermissions().contains(permission))
+        {
+            throw new IllegalArgumentException("Vous n'avez pas le droit d'enregistrer cette vente.");
+        }
+    }
+
+    private void processRegisterSale(SyncDTO.PendingAction action, AuthPrincipal principal)
     {
         transactionTemplate.execute(status -> {
+            UUID shopId = UUID.fromString(action.getShopId());
+            requireShopPermission(principal, shopId, PermissionEnum.CREATE_INVOICE);
+            requireShopPermission(principal, shopId, PermissionEnum.VALIDATE_INVOICE);
             UUID productId = UUID.fromString((String) action.getPayload().get("productId"));
             BigDecimal quantity = new BigDecimal(action.getPayload().get("quantity").toString());
-            UUID shopId = UUID.fromString(action.getShopId());
 
             InvoiceDTO.CreateInvoiceRequest createReq = InvoiceDTO.CreateInvoiceRequest.builder()
                     .customerName(null)

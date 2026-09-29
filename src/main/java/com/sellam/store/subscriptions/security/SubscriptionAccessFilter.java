@@ -1,8 +1,5 @@
 package com.sellam.store.subscriptions.security;
 
-import com.sellam.store.subscriptions.models.SubscriptionEntity;
-import com.sellam.store.subscriptions.models.SubscriptionStatusEnum;
-import com.sellam.store.subscriptions.repositories.SubscriptionRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,11 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,13 +31,14 @@ import java.util.regex.Pattern;
  * les routes /api/shops/{shopId}/subscription/**.
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class SubscriptionAccessFilter extends OncePerRequestFilter
 {
     private static final Pattern SHOP_ID_PATTERN =
-            Pattern.compile("^/api/shops/([0-9a-fA-F-]{36})(/.*)?$");
+            Pattern.compile("^/api/(?:shops|users/shop|cash/registers|cash/status)/([0-9a-fA-F-]{36})(/.*)?$");
 
-    private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionWriteGuard subscriptionWriteGuard;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -54,49 +51,62 @@ public class SubscriptionAccessFilter extends OncePerRequestFilter
         }
 
         String path = request.getRequestURI();
+        if (path.startsWith("/api/auth/") || path.startsWith("/api/payments/"))
+        {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        UUID shopId = shopIdFromQuery(request);
         Matcher matcher = SHOP_ID_PATTERN.matcher(path);
-        if (!matcher.matches())
+        if (shopId == null && matcher.matches())
+        {
+            String subPath = matcher.group(2) == null ? "" : matcher.group(2);
+            if (subPath.startsWith("/subscription"))
+            {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            try
+            {
+                shopId = UUID.fromString(matcher.group(1));
+            }
+            catch (IllegalArgumentException ignored)
+            {
+                shopId = null;
+            }
+        }
+
+        if (shopId == null)
         {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String subPath = matcher.group(2) == null ? "" : matcher.group(2);
-        if (subPath.startsWith("/subscription"))
-        {
-            // Le paiement/consultation de l'abonnement doit rester accessible
-            // même boutique bloquée, sinon aucun moyen de se débloquer.
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        UUID shopId;
-        try
-        {
-            shopId = UUID.fromString(matcher.group(1));
-        }
-        catch (IllegalArgumentException e)
-        {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        Optional<SubscriptionEntity> subscriptionOpt = subscriptionRepository.findByShopId(shopId);
-        if (subscriptionOpt.isEmpty())
-        {
-            // Pas d'abonnement = ancienne donnée ou boutique de test sans
-            // migration ; on ne bloque pas sur une absence de donnée.
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (subscriptionOpt.get().getStatus() == SubscriptionStatusEnum.EXPIRED)
+        if (subscriptionWriteGuard.isExpired(shopId))
         {
             writeBlockedResponse(response);
             return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private UUID shopIdFromQuery(HttpServletRequest request)
+    {
+        String raw = request.getParameter("shopId");
+        if (raw == null || raw.isBlank())
+        {
+            return null;
+        }
+        try
+        {
+            return UUID.fromString(raw);
+        }
+        catch (IllegalArgumentException e)
+        {
+            return null;
+        }
     }
 
     private boolean isWriteMethod(String method)
