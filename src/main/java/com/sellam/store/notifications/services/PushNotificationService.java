@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Profile("!dev & !postgres")
+@Profile("!test")
 public class PushNotificationService {
 
     private final PushSubscriptionRepository pushSubscriptionRepository;
@@ -54,7 +54,16 @@ public class PushNotificationService {
                 pushService.send(notification);
                 log.info("Push notification sent successfully to endpoint.");
             } catch (GeneralSecurityException | IOException | JoseException | ExecutionException e) {
-                log.error("Failed to send push notification to endpoint {}: {}", subscription.getEndpoint(), e.getMessage(), e);
+                String message = e.getMessage() == null ? "" : e.getMessage();
+                if (message.contains("410") || message.contains("404") || message.contains("Gone"))
+                {
+                    pushSubscriptionRepository.delete(subscription);
+                    log.info("Souscription push expirée supprimée pour shopId={}", shopId);
+                }
+                else
+                {
+                    log.error("Failed to send push notification to endpoint {}: {}", subscription.getEndpoint(), e.getMessage(), e);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("Push notification sending interrupted for endpoint {}: {}", subscription.getEndpoint(), e.getMessage());

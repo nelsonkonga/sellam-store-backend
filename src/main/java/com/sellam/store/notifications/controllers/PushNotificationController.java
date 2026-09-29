@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 @Slf4j
-@Profile("!dev & !postgres")
+@Profile("!test")
 public class PushNotificationController {
 
     private final PushSubscriptionService pushSubscriptionService;

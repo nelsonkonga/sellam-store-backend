@@ -13,7 +13,7 @@ import java.security.GeneralSecurityException;
 import java.security.Security;
 
 @Configuration
-@Profile("!test & !dev & !postgres")
+@Profile("!test")
 public class WebPushConfig {
 
     static {
@@ -31,6 +31,17 @@ public class WebPushConfig {
         if (publicKey != null && publicKey.trim().isEmpty()) publicKey = null;
         if (privateKey != null && privateKey.trim().isEmpty()) privateKey = null;
         if (subject != null && subject.trim().isEmpty()) subject = null;
-        return new PushService(publicKey, privateKey, subject);
+        if (publicKey == null || privateKey == null)
+        {
+            return new PushService();
+        }
+        try
+        {
+            return new PushService(publicKey, privateKey, subject);
+        }
+        catch (GeneralSecurityException | IllegalArgumentException ex)
+        {
+            return new PushService();
+        }
     }
 }

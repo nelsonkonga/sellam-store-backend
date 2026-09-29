@@ -4,6 +4,7 @@ import com.sellam.store.cash.dto.CashDTO;
 import com.sellam.store.cash.services.CashSessionService;
 import com.sellam.store.common.security.AuthPrincipal;
 import com.sellam.store.common.security.IShopAccessGuard;
+import com.sellam.store.subscriptions.security.SubscriptionWriteGuard;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ public class CashSessionController {
 
     private final CashSessionService cashSessionService;
     private final IShopAccessGuard shopAccessGuard;
+    private final SubscriptionWriteGuard subscriptionWriteGuard;
 
     // ──────────────── Register ────────────────
 
@@ -51,6 +53,9 @@ public class CashSessionController {
             @Valid @RequestBody CashDTO.OpenSessionRequest request,
             Authentication auth) {
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
+        UUID registerShopId = cashSessionService.getRegisterShopId(registerId);
+        shopAccessGuard.checkShopAccess(auth, registerShopId);
+        subscriptionWriteGuard.assertWritable(registerShopId);
         return cashSessionService.openSession(registerId, principal.getId(), request);
     }
 
@@ -62,6 +67,9 @@ public class CashSessionController {
             @Valid @RequestBody CashDTO.CloseSessionRequest request,
             Authentication auth) {
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
+        UUID closeShopId = cashSessionService.getSessionShopId(sessionId);
+        shopAccessGuard.checkShopAccess(auth, closeShopId);
+        subscriptionWriteGuard.assertWritable(closeShopId);
         return cashSessionService.closeSession(sessionId, principal.getId(), request);
     }
 
@@ -73,6 +81,9 @@ public class CashSessionController {
             @Valid @RequestBody CashDTO.RegularizeInitialCashRequest request,
             Authentication auth) {
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
+        UUID regularizeShopId = cashSessionService.getSessionShopId(sessionId);
+        shopAccessGuard.checkShopAccess(auth, regularizeShopId);
+        subscriptionWriteGuard.assertWritable(regularizeShopId);
         return cashSessionService.regularizeInitialCash(sessionId, principal.getId(), request);
     }
 
@@ -85,6 +96,12 @@ public class CashSessionController {
             @Valid @RequestBody CashDTO.HandoverCountRequest request,
             Authentication auth) {
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
+        UUID pendingShopId = cashSessionService.getSessionShopId(pendingSessionId);
+        UUID currentShopId = cashSessionService.getSessionShopId(currentSessionId);
+        shopAccessGuard.checkShopAccess(auth, pendingShopId);
+        shopAccessGuard.checkShopAccess(auth, currentShopId);
+        subscriptionWriteGuard.assertWritable(pendingShopId);
+        subscriptionWriteGuard.assertWritable(currentShopId);
         return cashSessionService.resolveHandover(pendingSessionId, currentSessionId, principal.getId(), request);
     }
 
@@ -98,6 +115,9 @@ public class CashSessionController {
             @Valid @RequestBody CashDTO.CreateMovementRequest request,
             Authentication auth) {
         AuthPrincipal principal = (AuthPrincipal) auth.getPrincipal();
+        UUID movementShopId = cashSessionService.getSessionShopId(sessionId);
+        shopAccessGuard.checkShopAccess(auth, movementShopId);
+        subscriptionWriteGuard.assertWritable(movementShopId);
         return cashSessionService.addMovement(sessionId, principal.getId(), request);
     }
 
@@ -106,7 +126,8 @@ public class CashSessionController {
     @GetMapping("/sessions/{sessionId}")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.OK)
-    public CashDTO.SessionDetailResponse getSessionDetail(@PathVariable UUID sessionId) {
+    public CashDTO.SessionDetailResponse getSessionDetail(@PathVariable UUID sessionId, Authentication auth) {
+        shopAccessGuard.checkShopAccess(auth, cashSessionService.getSessionShopId(sessionId));
         return cashSessionService.getSessionDetail(sessionId);
     }
 

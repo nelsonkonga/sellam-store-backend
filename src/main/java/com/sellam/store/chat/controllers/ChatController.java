@@ -47,6 +47,10 @@ public class ChatController {
                         throw new org.springframework.web.server.ResponseStatusException(
                                         org.springframework.http.HttpStatus.FORBIDDEN, "Expéditeur invalide");
                 }
+                if (messageDTO.getShopId() == null || !conversationId.equals(messageDTO.getShopId().toString())) {
+                        throw new org.springframework.web.server.ResponseStatusException(
+                                        org.springframework.http.HttpStatus.FORBIDDEN, "Salon de discussion invalide");
+                }
                 shopAccessGuard.checkShopAccess(authentication, messageDTO.getShopId());
 
         // Save message to database
@@ -79,13 +83,12 @@ public class ChatController {
     @GetMapping("/api/chat/history/{conversationId}")
     @PreAuthorize("isAuthenticated()")
     public List<ChatMessageDTO> getChatHistory(@PathVariable String conversationId, Authentication authentication) {
-        // Verify user has access to the shop associated with this conversation
+        UUID shopId = parseShopConversation(conversationId);
+        shopAccessGuard.checkShopAccess(authentication, shopId);
         List<ChatMessage> messages = chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
-        if (!messages.isEmpty()) {
-            shopAccessGuard.checkShopAccess(authentication, messages.get(0).getShopId());
-        }
         return messages
                 .stream()
+                .filter(msg -> shopId.equals(msg.getShopId()))
                 .map(msg -> ChatMessageDTO.builder()
                         .id(msg.getId())
                         .shopId(msg.getShopId())
@@ -118,5 +121,14 @@ public class ChatController {
                         .createdAt(msg.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private UUID parseShopConversation(String conversationId) {
+        try {
+            return UUID.fromString(conversationId);
+        } catch (IllegalArgumentException ex) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Salon de discussion invalide");
+        }
     }
 }

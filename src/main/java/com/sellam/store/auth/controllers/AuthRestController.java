@@ -1,7 +1,10 @@
 package com.sellam.store.auth.controllers;
 
+import com.sellam.store.auth.AuthCookieWriter;
 import com.sellam.store.auth.services.AuthService;
 import com.sellam.store.auth.dto.AuthDTO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,19 +23,52 @@ public class AuthRestController
 {
 
     private final AuthService authService;
+    private final AuthCookieWriter authCookieWriter;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthDTO.AuthResponse register(@Valid @RequestBody AuthDTO.RegisterRequest request)
+    public AuthDTO.AuthResponse register(@Valid @RequestBody AuthDTO.RegisterRequest request,
+                                         HttpServletRequest httpRequest,
+                                         HttpServletResponse httpResponse)
     {
-        return authService.register(request);
+        AuthDTO.AuthResponse response = authService.register(request);
+        authCookieWriter.writeAccessCookie(httpRequest, httpResponse, response.getToken());
+        return response;
     }
 
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)
-    public AuthDTO.AuthResponse login(@Valid @RequestBody AuthDTO.LoginRequest request)
+    public AuthDTO.AuthResponse login(@Valid @RequestBody AuthDTO.LoginRequest request,
+                                      HttpServletRequest httpRequest,
+                                      HttpServletResponse httpResponse)
     {
-        return authService.login(request);
+        AuthDTO.AuthResponse response = authService.login(request);
+        authCookieWriter.writeAccessCookie(httpRequest, httpResponse, response.getToken());
+        return response;
+    }
+
+    @GetMapping("/me")
+    @ResponseStatus(HttpStatus.OK)
+    public AuthDTO.AuthResponse me(Authentication authentication, HttpServletRequest httpRequest, HttpServletResponse httpResponse)
+    {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthPrincipal principal))
+        {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expirée. Reconnectez-vous.");
+        }
+        AuthDTO.AuthResponse response = authService.resumeSession(principal.getId());
+        authCookieWriter.writeAccessCookie(httpRequest, httpResponse, response.getToken());
+        return response;
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(Authentication authentication, HttpServletRequest httpRequest, HttpServletResponse httpResponse)
+    {
+        if (authentication != null && authentication.getPrincipal() instanceof AuthPrincipal principal)
+        {
+            authService.logout(principal.getId());
+        }
+        authCookieWriter.clearAccessCookie(httpRequest, httpResponse);
     }
 
     @PostMapping("/verify-email")

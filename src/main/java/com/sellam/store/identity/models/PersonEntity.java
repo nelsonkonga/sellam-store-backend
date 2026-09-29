@@ -100,6 +100,10 @@ public class PersonEntity
     @Column(name = "reset_token_expires_at")
     private LocalDateTime resetTokenExpiresAt;
 
+    @Builder.Default
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 0;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

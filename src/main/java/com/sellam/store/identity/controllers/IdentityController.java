@@ -137,12 +137,9 @@ public class IdentityController
             Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        requireMembershipShop(principal, membershipId);
 
         ShopMembershipEntity membership = identityService.updateMembershipRole(membershipId, request.getRole());
-
-        // VÃ©rifier que le modificateur a accÃ¨s Ã  la boutique de la membership
-        shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
-
         return toMembershipResponse(membership);
     }
 
@@ -157,12 +154,9 @@ public class IdentityController
             Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        requireMembershipShop(principal, membershipId);
 
         ShopMembershipEntity membership = identityService.toggleMembershipActive(membershipId);
-
-        // VÃ©rifier que le modificateur a accÃ¨s Ã  la boutique de la membership
-        shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
-
         return toMembershipResponse(membership);
     }
 
@@ -177,10 +171,7 @@ public class IdentityController
             Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
-
-        ShopMembershipEntity membership = shopMembershipRepository.findById(membershipId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Membership introuvable"));
-        shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
+        requireMembershipShop(principal, membershipId);
         identityService.deleteMembership(membershipId);
     }
 
@@ -196,15 +187,13 @@ public class IdentityController
             Authentication authentication)
     {
         AuthPrincipal principal = shopAccessGuard.requirePrincipal(authentication);
+        requireMembershipShop(principal, membershipId);
 
         ShopMembershipEntity membership = identityService.updateMembershipPermissions(
                 membershipId,
                 request.getGrantedOverrides(),
                 request.getRevokedOverrides()
         );
-
-        // VÃ©rifier que le modificateur a accÃ¨s Ã  la boutique de la membership
-        shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
 
         return toMembershipResponse(membership);
     }
@@ -286,6 +275,13 @@ public class IdentityController
                 .canChange(canChange)
                 .reason(canChange ? null : "Limite de 3 mois entre les changements")
                 .build();
+    }
+
+    private void requireMembershipShop(AuthPrincipal principal, UUID membershipId)
+    {
+        ShopMembershipEntity membership = shopMembershipRepository.findById(membershipId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Membership introuvable"));
+        shopAccessGuard.checkShopAccess(principal, membership.getShop().getId());
     }
 
     private IdentityDTO.MembershipResponse toMembershipResponse(ShopMembershipEntity membership)

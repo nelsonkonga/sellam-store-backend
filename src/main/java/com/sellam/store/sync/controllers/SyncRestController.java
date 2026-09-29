@@ -2,6 +2,7 @@ package com.sellam.store.sync.controllers;
 
 import com.sellam.store.common.security.AuthPrincipal;
 import com.sellam.store.common.security.IShopAccessGuard;
+import com.sellam.store.subscriptions.security.SubscriptionWriteGuard;
 import com.sellam.store.sync.dto.SyncDTO;
 import com.sellam.store.sync.services.SyncService;
 import org.springframework.http.HttpStatus;
@@ -25,11 +26,13 @@ public class SyncRestController
 
     private final SyncService syncService;
     private final IShopAccessGuard shopAccessGuard;
+    private final SubscriptionWriteGuard subscriptionWriteGuard;
 
-    public SyncRestController(SyncService syncService, IShopAccessGuard shopAccessGuard)
+    public SyncRestController(SyncService syncService, IShopAccessGuard shopAccessGuard, SubscriptionWriteGuard subscriptionWriteGuard)
     {
         this.syncService = syncService;
         this.shopAccessGuard = shopAccessGuard;
+        this.subscriptionWriteGuard = subscriptionWriteGuard;
     }
 
     @PostMapping
@@ -63,8 +66,9 @@ public class SyncRestController
             }
 
             shopAccessGuard.checkShopAccess(principal, actionShopId);
+            subscriptionWriteGuard.assertWritable(actionShopId);
         }
 
-        return ResponseEntity.ok(syncService.processSync(request));
+        return ResponseEntity.ok(syncService.processSync(request, principal));
     }
 }

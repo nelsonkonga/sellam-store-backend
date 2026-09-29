@@ -1,6 +1,7 @@
 package com.sellam.store.common.exception;
 
 import com.sellam.store.payments.exceptions.PaymentProviderUnavailableException;
+import com.sellam.store.subscriptions.security.SubscriptionExpiredException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -71,6 +72,18 @@ public class GlobalExceptionHandler
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(SubscriptionExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleSubscriptionExpired(SubscriptionExpiredException ex)
+    {
+        ErrorResponse response = ErrorResponse.builder()
+                .message(ex.getMessage())
+                .error("SUBSCRIPTION_EXPIRED")
+                .status(HttpStatus.FORBIDDEN.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException ex)
     {
@@ -122,8 +135,8 @@ public class GlobalExceptionHandler
         logger.error("Unhandled exception", ex);
         
         ErrorResponse response = ErrorResponse.builder()
-                .message("Une erreur interne est survenue")
-                .error(ex.getClass().getSimpleName())
+                .message("Une erreur interne est survenue. Réessayez dans un instant.")
+                .error("INTERNAL_ERROR")
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .timestamp(LocalDateTime.now())
                 .build();

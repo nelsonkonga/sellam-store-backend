@@ -183,7 +183,12 @@ public class UserService {
     public void changePassword(UUID userId, UserDTO.ChangePasswordRequest request) {
         PersonEntity person = personRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé introuvable"));
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 8)
+        {
+            throw new IllegalArgumentException("Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.");
+        }
         person.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        person.setTokenVersion(person.getTokenVersion() + 1);
         personRepository.save(person);
     }
 
@@ -200,12 +205,17 @@ public class UserService {
     }
 
     @Transactional
-    public void deleteUser(UUID userId) {
+    public void deleteUser(UUID userId, UUID shopId) {
         List<ShopMembershipEntity> memberships = shopMembershipRepository.findByPersonId(userId);
-        if (!memberships.isEmpty()) {
-            shopMembershipRepository.deleteAll(memberships);
+        List<ShopMembershipEntity> inThisShop = memberships.stream()
+                .filter(membership -> membership.getShop() != null && shopId.equals(membership.getShop().getId()))
+                .toList();
+        if (!inThisShop.isEmpty()) {
+            shopMembershipRepository.deleteAll(inThisShop);
         }
-        personRepository.findById(userId).ifPresent(personRepository::delete);
+        if (memberships.size() == inThisShop.size()) {
+            personRepository.findById(userId).ifPresent(personRepository::delete);
+        }
     }
 
     private Set<String> toStringSet(Set<PermissionEnum> permissions) {
