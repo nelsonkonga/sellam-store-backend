@@ -130,7 +130,7 @@ public class AuthService
         // Validation du mot de passe (8+ caractÃ¨res, majuscule, minuscule, chiffre, spÃ©cial)
         if (!isPasswordValid(request.getPassword()))
         {
-            throw new IllegalArgumentException("Le mot de passe doit contenir au moins 8 caractÃ¨res, une majuscule, une minuscule, un chiffre et un caractÃ¨re spÃ©cial");
+            throw new IllegalArgumentException("Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial");
         }
 
         // VÃ©rifier les doublons
